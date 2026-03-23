@@ -17,7 +17,7 @@ Actuellement, les jeunes doivent consulter plusieurs sources pour trouver des é
 - **Affiches** : souvent vues trop tard
 
 
-# Conséquences : 
+**Conséquences** : 
 
 - Beaucoup d'événements sont ratés par manque d'information
 - Difficulté à sortir seul quand les amis sont occupés
