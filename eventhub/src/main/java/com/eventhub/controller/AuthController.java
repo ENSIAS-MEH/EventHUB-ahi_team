@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.eventhub.dto.request.LoginRequest;
 import com.eventhub.dto.request.RegisterRequest;
 import com.eventhub.dto.response.AuthResponse;
 import com.eventhub.service.AuthService;
@@ -20,7 +21,6 @@ public class AuthController {
     
     private final AuthService authService;
     
-    // Constructeur
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
@@ -28,5 +28,10 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
+    }
+    
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
     }
 }
