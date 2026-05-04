@@ -1,0 +1,11 @@
+services:
+  mysql-server:
+    image: mysql:8.0
+    container_name: eventhub-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
