@@ -2,7 +2,7 @@ export function Logo({ showText = true, className = "" }) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <svg
-        viewBox="0 0 60 80"
+        viewBox="0 12 60 64"
         fill="none"
         className="h-12 w-12 flex-shrink-0"
         aria-hidden="true"
@@ -60,14 +60,10 @@ export function Logo({ showText = true, className = "" }) {
       </svg>
 
       {showText && (
-        <div>
-          <p className="text-lg font-extrabold tracking-tight text-white">
-            GUICHET
-          </p>
-          <p className="text-lg font-extrabold tracking-tight text-orange-400">
-            DARK
-          </p>
-        </div>
+        <h2 className="text-xl font-extrabold tracking-tight whitespace-nowrap leading-none">
+          <span className="text-white">Event</span>
+          <span className="text-[#FF5722]">HUB</span>
+        </h2>
       )}
     </div>
   );
