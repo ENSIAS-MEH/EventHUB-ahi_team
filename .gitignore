@@ -1,0 +1,12 @@
+# Maven
+target/
+*.class
+
+# Node
+node_modules/
+*.zip
+*.swp
+
+# IDE
+.idea/
+*.iml

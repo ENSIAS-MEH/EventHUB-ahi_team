@@ -1,9 +1,0 @@
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/dto/LoginRequest.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/config/SecurityConfig.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/repository/UserRepository.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/controller/AuthController.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/entity/User.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/AuthServiceApplication.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/service/AuthService.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/dto/RegisterRequest.java
-/home/ihssan/development-platform-ahi_team/backend/auth-service/src/main/java/com/billetterie/auth/dto/AuthResponse.java
