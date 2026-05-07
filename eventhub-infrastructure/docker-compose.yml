@@ -1,4 +1,5 @@
 services:
+  # 1. La Base de Données
   mysql-server:
     image: mysql:8.0
     container_name: eventhub-mysql
@@ -9,3 +10,57 @@ services:
       - "3306:3306"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # 2. L'Annuaire Eureka
+  eureka-server:
+    build: ../backend/eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+
+  # 3. Le service d'Authentification
+  auth-service:
+    build: ../backend/auth-service
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_auth?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
+    depends_on:
+      - mysql-server
+      - eureka-server
+
+  # 4. Le service des Événements
+  event-service:
+    build: ../backend/event-service
+    container_name: event-service
+    ports:
+      - "8082:8082"
+    environment:
+      # NOUVEAU : Ajout de allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_event?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
+    depends_on:
+      - mysql-server
+      - eureka-server
+
+  # 5. Le service de Réservation
+  booking-service:
+    build: ../backend/booking-service
+    container_name: booking-service
+    ports:
+      - "8083:8083"
+    environment:
+      # NOUVEAU : Ajout de allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_booking?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
+    depends_on:
+      - mysql-server
+      - eureka-server
