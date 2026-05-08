@@ -44,6 +44,8 @@ export function Header({
   savedCount,
   onDownloadTickets,
 }) {
+  // État pour simuler la connexion (à remplacer par ton vrai contexte d'authentification plus tard)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -61,6 +63,7 @@ export function Header({
 
   const handleProfileClick = () => {
     navigate("/dashboard");
+    setIsProfileOpen(false);
   };
 
   return (
@@ -96,22 +99,67 @@ export function Header({
         </button>
       </div>
 
-      <div className="relative flex items-center justify-between gap-3 lg:justify-end" ref={dropdownRef}>
-        <button
-          type="button"
-          onClick={handleProfileClick}
-          className="inline-flex items-center gap-3 rounded-2xl border border-white/5 bg-slate-950/80 px-4 py-3 text-left text-sm text-slate-200 transition hover:border-orange-400/20"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-orange-300">
-            <UserIcon />
-          </span>
-          <span>
-            <span className="block font-bold text-white">Anas M.</span>
-            <span className="block text-xs text-slate-400">
-              Mon espace • {savedCount} favori{savedCount > 1 ? "s" : ""}
-            </span>
-          </span>
-        </button>
+      {/* SECTION AUTHENTIFICATION À DROITE */}
+      <div className="relative flex items-center justify-between gap-4 lg:justify-end" ref={dropdownRef}>
+        
+        {isAuthenticated ? (
+          /* --- UTILISATEUR CONNECTÉ --- */
+          <>
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="inline-flex items-center gap-3 rounded-2xl border border-white/5 bg-slate-950/80 px-4 py-3 text-left text-sm text-slate-200 transition hover:border-orange-400/20"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-orange-300">
+                <UserIcon />
+              </span>
+              <span>
+                <span className="block font-bold text-white">utilisateur X</span>
+                <span className="block text-xs text-slate-400">
+                  Mon espace • {savedCount} favori{savedCount > 1 ? "s" : ""}
+                </span>
+              </span>
+            </button>
+
+            {/* Menu déroulant */}
+            {isProfileOpen && (
+              <div className="absolute right-0 top-[110%] z-50 mt-2 w-56 rounded-2xl border border-white/10 bg-slate-900 p-2 shadow-xl shadow-black/50 backdrop-blur-xl">
+                <button
+                  onClick={handleProfileClick}
+                  className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                >
+                  Tableau de bord
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAuthenticated(false);
+                    setIsProfileOpen(false);
+                  }}
+                  className="mt-1 w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          /* --- UTILISATEUR NON CONNECTÉ --- */
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsAuthenticated(true)}
+              className="px-4 py-3 text-sm font-bold text-slate-300 transition hover:text-white"
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => setIsAuthenticated(true)}
+              className="inline-flex items-center justify-center rounded-2xl border border-orange-400/20 bg-[#FF5722] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-[#FF5722]/20 transition hover:bg-orange-500"
+            >
+              Register
+            </button>
+          </div>
+        )}
+
       </div>
     </header>
   );
