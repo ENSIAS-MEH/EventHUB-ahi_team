@@ -11,6 +11,7 @@ export function HomePage({
   onItemSelect,
   onToggleSaved,
   savedEvents,
+  loadingEvents,
 }) {
   return (
     <section className="relative overflow-hidden rounded-[32px] border border-stroke bg-hero-grid bg-panel/80 px-5 py-8 shadow-glow backdrop-blur sm:px-8 sm:py-10 lg:px-10">
@@ -58,11 +59,17 @@ export function HomePage({
           </p>
         </div>
 
-        <EventGrid
-          events={filteredEvents}
-          savedEvents={savedEvents}
-          onToggleSaved={onToggleSaved}
-        />
+        {loadingEvents ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+          </div>
+        ) : (
+          <EventGrid
+            events={filteredEvents}
+            savedEvents={savedEvents}
+            onToggleSaved={onToggleSaved}
+          />
+        )}
       </div>
     </section>
   );

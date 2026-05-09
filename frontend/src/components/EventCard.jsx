@@ -53,6 +53,7 @@ export function EventCard({ event, isSaved, onToggleSaved }) {
           src={event.image}
           alt={event.title}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80"; }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
         <div className="absolute bottom-4 left-4 rounded-full bg-[#FF5722] px-4 py-2 text-sm font-extrabold text-white shadow-lg shadow-orange-950/40">

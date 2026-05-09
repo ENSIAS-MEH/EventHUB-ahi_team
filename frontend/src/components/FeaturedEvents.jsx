@@ -25,6 +25,7 @@ export function FeaturedEvents({ events }) {
                 src={event.image}
                 alt={event.title}
                 className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&q=80"; }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
               <div className="absolute bottom-4 left-4 rounded-full bg-[#FF5722] px-4 py-2 text-xs font-extrabold text-white">

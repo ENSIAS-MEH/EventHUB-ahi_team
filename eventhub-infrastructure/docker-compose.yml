@@ -10,6 +10,12 @@ services:
       - "3306:3306"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # 2. L'Annuaire Eureka
   eureka-server:
@@ -17,6 +23,12 @@ services:
     container_name: eureka-server
     ports:
       - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
 
   # 3. Le service d'Authentification
   auth-service:
@@ -28,10 +40,13 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_auth?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     depends_on:
-      - mysql-server
-      - eureka-server
+      mysql-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: on-failure
 
   # 4. Le service des Événements
   event-service:
@@ -40,14 +55,20 @@ services:
     ports:
       - "8082:8082"
     environment:
-      # NOUVEAU : Ajout de allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_event?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - UPLOAD_DIR=/app/uploads
+      - UPLOAD_BASE_URL=http://localhost:8082
+    volumes:
+      - event-uploads:/app/uploads
     depends_on:
-      - mysql-server
-      - eureka-server
+      mysql-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: on-failure
 
   # 5. Le service de Réservation
   booking-service:
@@ -56,11 +77,17 @@ services:
     ports:
       - "8083:8083"
     environment:
-      # NOUVEAU : Ajout de allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_booking?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - eureka.client.serviceUrl.defaultZone=http://eureka-server:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EVENT_SERVICE_URL=http://event-service:8082
     depends_on:
-      - mysql-server
-      - eureka-server
+      mysql-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  event-uploads:

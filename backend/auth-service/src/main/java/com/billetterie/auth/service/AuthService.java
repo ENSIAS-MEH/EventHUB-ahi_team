@@ -40,6 +40,6 @@ public class AuthService {
             throw new BadCredentialsException("Identifiants invalides");
         }
 
-        return new AuthResponse("Connexion réussie", user.getEmail(), user.getRole());
+        return new AuthResponse("Connexion réussie", user.getId(), user.getNom(), user.getEmail(), user.getRole());
     }
 }

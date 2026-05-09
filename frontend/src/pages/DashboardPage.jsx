@@ -1,442 +1,404 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { bookingsApi, eventsApi } from "../api/api";
 
 const PDFIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-    <path
-      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const EditIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-    <path
-      d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-    />
-    <path
-      d="M18.5 2.5a2.121 2.121 0 013 3L12 15H9v-3L18.5 2.5z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-    />
+const UploadIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8" aria-hidden="true">
+    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const DeleteIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-    <path
-      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M10 7V4a1 1 0 011-1h2a1 1 0 011 1v3m-6 0h12"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+const STATUT_STYLE = {
+  CONFIRMEE: "bg-green-500/20 text-green-300",
+  ANNULEE: "bg-red-500/20 text-red-400",
+  EN_ATTENTE: "bg-orange-500/20 text-orange-300",
+};
 
-const mockReservations = [
-  {
-    id: 1,
-    eventName: "Concert Premium - Artiste International",
-    date: "15 mai 2026",
-    quantity: 2,
-    code: "GDT-2026-001",
-  },
-  {
-    id: 2,
-    eventName: "Festival de Cinéma - Projection Spéciale",
-    date: "22 mai 2026",
-    quantity: 1,
-    code: "GDT-2026-002",
-  },
-  {
-    id: 3,
-    eventName: "Expérience Voyage - Week-end Découverte",
-    date: "28 mai 2026",
-    quantity: 3,
-    code: "GDT-2026-003",
-  },
-];
-
-function downloadTicketPDF(reservation) {
-  const content = `TICKET GUICHET DARK
-==========================================
-
-Événement: ${reservation.eventName}
-Date: ${reservation.date}
-Nombre de places: ${reservation.quantity}
-Code de réservation: ${reservation.code}
-
-Ce billet doit être présenté à l'entrée.
-Date d'émission: ${new Date().toLocaleDateString("fr-FR")}
-
-==========================================`;
-
+function downloadTicket(booking, eventTitle) {
+  const code = `EVH-${String(booking.id).padStart(6, "0")}`;
+  const content = [
+    "TICKET EVENTHUB",
+    "==========================================",
+    "",
+    `Événement : ${eventTitle || `#${booking.eventId}`}`,
+    `Date réservation : ${new Date(booking.dateReservation).toLocaleDateString("fr-FR")}`,
+    `Nombre de places : ${booking.nombrePlaces}`,
+    `Statut : ${booking.statut}`,
+    `Code : ${code}`,
+    "",
+    "Ce billet doit être présenté à l'entrée.",
+    "==========================================",
+  ].join("\n");
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `ticket-${reservation.code}.txt`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ticket-${code}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   URL.revokeObjectURL(url);
 }
 
-const mockAnnouncements = [
-  {
-    id: 1,
-    title: "Concert Jazz - Soirée élégante",
-    category: "Musique",
-    date: "10 juin 2026",
-    status: "Publié",
-    ticketsSold: 45,
-    totalPlaces: 100,
-    image: "🎵",
-  },
-  {
-    id: 2,
-    title: "Atelier Photographie - Techniques avancées",
-    category: "Loisir",
-    date: "15 juin 2026",
-    status: "Brouillon",
-    ticketsSold: 12,
-    totalPlaces: 30,
-    image: "📷",
-  },
-  {
-    id: 3,
-    title: "Conférence Tech - Intelligence Artificielle",
-    category: "Conférence",
-    date: "20 juin 2026",
-    status: "Publié",
-    ticketsSold: 87,
-    totalPlaces: 150,
-    image: "💻",
-  },
-];
-
-const userProfile = {
-  name: "Anas Mohamed",
-  email: "anas.mohamed@guichetdark.ma",
-  phone: "+212 6 12 34 56 78",
-  avatar: "AM",
+const EMPTY_FORM = {
+  titre: "", categorie: "Concert", description: "",
+  lieu: "", date: "", prix: "", placesDisponibles: "",
 };
 
-export function DashboardPage({ events, savedEvents }) {
+export function DashboardPage({ events, savedEvents, onEventCreated }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Vue globale");
-  const [formData, setFormData] = useState({
-    eventTitle: "",
-    category: "Musique",
-    description: "",
-    location: "",
-    date: "",
-    ticketPrice: "",
-    availablePlaces: "",
-    image: null,
-  });
-  const [profileData, setProfileData] = useState(userProfile);
-  const [editingProfile, setEditingProfile] = useState(false);
 
-  const savedCount = savedEvents.length;
+  // Réservations
+  const [bookings, setBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
 
-  const tabs = ["Vue globale", "Mes reservations", "Mes favoris", "➕ Ajouter un événement", "Mes annonces", "⚙️ Paramètres"];
+  // Création d'événement
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const [formSuccess, setFormSuccess] = useState("");
+  const [formError, setFormError] = useState("");
+  const fileInputRef = useRef(null);
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const tabs = ["Vue globale", "Mes reservations", "Mes favoris", "➕ Ajouter un événement", "⚙️ Paramètres"];
 
-  const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    setProfileData((prev) => ({ ...prev, [name]: value }));
-  };
+  // Charge les réservations + noms d'événements
+  const [eventMap, setEventMap] = useState({});
+  useEffect(() => {
+    eventsApi.getAll()
+      .then((list) => {
+        if (Array.isArray(list)) {
+          const map = {};
+          list.forEach((e) => { map[e.id] = e.titre; });
+          setEventMap(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  const handleSubmitEvent = (e) => {
+  useEffect(() => {
+    if (!user) return;
+    setBookingsLoading(true);
+    bookingsApi.getByUser(user.userId)
+      .then(setBookings)
+      .catch(() => setBookings([]))
+      .finally(() => setBookingsLoading(false));
+  }, [user]);
+
+  // Gestion image
+  function handleImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  function handleDrop(e) {
     e.preventDefault();
-    alert("Événement créé avec succès!");
-    setFormData({
-      eventTitle: "",
-      category: "Musique",
-      description: "",
-      location: "",
-      date: "",
-      ticketPrice: "",
-      availablePlaces: "",
-      image: null,
-    });
-  };
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
 
-  const handleSaveProfile = () => {
-    setEditingProfile(false);
-    alert("Profil mis à jour!");
-  };
+  function removeImage() {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleFormChange(e) {
+    const { name, value } = e.target;
+    setFormData((f) => ({ ...f, [name]: value }));
+  }
+
+  async function handleSubmitEvent(e) {
+    e.preventDefault();
+    setFormError("");
+    setFormSuccess("");
+    setFormLoading(true);
+    try {
+      let imageUrl = "";
+      if (imageFile) {
+        setUploading(true);
+        const result = await eventsApi.uploadImage(imageFile);
+        imageUrl = result.url || "";
+        setUploading(false);
+      }
+      await eventsApi.create({
+        titre: formData.titre,
+        categorie: formData.categorie,
+        description: formData.description,
+        lieu: formData.lieu,
+        date: formData.date,
+        prix: parseFloat(formData.prix) || 0,
+        placesDisponibles: parseInt(formData.placesDisponibles, 10) || 0,
+        imageUrl,
+      });
+      setFormSuccess("Événement publié avec succès !");
+      setFormData(EMPTY_FORM);
+      removeImage();
+      onEventCreated?.();
+    } catch (err) {
+      setUploading(false);
+      setFormError(err.message || "Erreur lors de la création.");
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
+  const savedEventObjects = events.filter((e) => savedEvents.includes(e.id));
+  const initials = user?.nom
+    ? user.nom.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
+
+  if (!user) {
+    return (
+      <section className="flex flex-col items-center justify-center rounded-[32px] border border-stroke bg-panel/80 p-16 text-center shadow-glow">
+        <p className="text-xl font-bold text-white">Vous n'êtes pas connecté.</p>
+        <button onClick={() => navigate("/auth")} className="mt-6 rounded-2xl bg-[#FF5722] px-6 py-3 text-sm font-bold text-white transition hover:bg-orange-500">
+          Se connecter
+        </button>
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-[32px] border border-stroke bg-panel/80 p-6 shadow-glow sm:p-8">
       <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
+
         {/* Sidebar */}
-        <aside className="h-fit rounded-[28px] border border-white/8 bg-slate-950/70 p-5 sticky top-20">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-300">
-            Dashboard
-          </p>
-          <div className="mt-5 space-y-3">
+        <aside className="sticky top-20 h-fit rounded-[28px] border border-white/8 bg-slate-950/70 p-5">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-sm font-extrabold text-white">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-bold text-white text-sm">{user.nom}</p>
+              <p className="truncate text-xs text-slate-400">{user.email}</p>
+            </div>
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-300">Dashboard</p>
+          <div className="mt-4 space-y-2">
             {tabs.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setActiveTab(item)}
-                className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
-                  activeTab === item
-                    ? "bg-[#FF5722] text-white"
-                    : "bg-panel-soft text-slate-300 hover:text-white"
-                }`}
-              >
+              <button key={item} type="button" onClick={() => setActiveTab(item)}
+                className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${activeTab === item ? "bg-[#FF5722] text-white" : "bg-panel-soft text-slate-300 hover:text-white"}`}>
                 {item}
               </button>
             ))}
+            <button type="button" onClick={() => { logout(); navigate("/"); }}
+              className="w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-red-400 transition hover:bg-red-500/10">
+              Déconnexion
+            </button>
           </div>
         </aside>
 
-        {/* Main Content */}
+        {/* Contenu principal */}
         <div className="space-y-6">
-          {/* Vue globale */}
+
+          {/* ── Vue globale ── */}
           {activeTab === "Vue globale" && (
             <>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-[24px] border border-white/8 bg-slate-950/60 p-5">
-                  <p className="text-sm text-slate-400">Evenements suivis</p>
-                  <p className="mt-3 text-3xl font-extrabold text-white">{savedCount}</p>
-                </div>
-                <div className="rounded-[24px] border border-white/8 bg-slate-950/60 p-5">
-                  <p className="text-sm text-slate-400">Evenements disponibles</p>
-                  <p className="mt-3 text-3xl font-extrabold text-white">{events.length}</p>
-                </div>
-                <div className="rounded-[24px] border border-white/8 bg-slate-950/60 p-5">
-                  <p className="text-sm text-slate-400">Statut compte</p>
-                  <p className="mt-3 text-3xl font-extrabold text-white">Premium</p>
-                </div>
+                {[
+                  { label: "Réservations", value: bookings.length },
+                  { label: "Favoris", value: savedEvents.length },
+                  { label: "Rôle", value: user.role === "ROLE_CLIENT" ? "Client" : user.role },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-[24px] border border-white/8 bg-slate-950/60 p-5">
+                    <p className="text-sm text-slate-400">{label}</p>
+                    <p className="mt-3 text-3xl font-extrabold text-white">{value}</p>
+                  </div>
+                ))}
               </div>
-
               <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
-                <h2 className="text-2xl font-extrabold text-white">Tableau de bord</h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-                  Cet espace centralise vos informations, reservations et favoris avec une presentation coherente avec la navigation sombre existante.
+                <h2 className="text-2xl font-extrabold text-white">Bienvenue, {user.nom} !</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-400">
+                  Retrouvez ici vos réservations, favoris et créez vos propres événements.
                 </p>
               </div>
             </>
           )}
 
-          {/* Mes réservations */}
+          {/* ── Mes réservations ── */}
           {activeTab === "Mes reservations" && (
             <div className="space-y-4">
               <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
                 <h2 className="text-2xl font-extrabold text-white">Mes réservations</h2>
                 <p className="mt-2 text-sm text-slate-400">
-                  Vous avez {mockReservations.length} réservation{mockReservations.length > 1 ? "s" : ""}
+                  {bookingsLoading ? "Chargement..." : `${bookings.length} réservation${bookings.length !== 1 ? "s" : ""}`}
                 </p>
               </div>
 
-              <div className="space-y-3">
-                {mockReservations.map((reservation) => (
-                  <div
-                    key={reservation.id}
-                    className="rounded-[24px] border border-white/8 bg-slate-950/60 p-5 transition hover:border-orange-400/30"
-                  >
+              {!bookingsLoading && bookings.length === 0 && (
+                <div className="rounded-[24px] border border-dashed border-white/10 bg-slate-950/50 p-10 text-center">
+                  <p className="text-slate-400">Aucune réservation pour le moment.</p>
+                  <button onClick={() => navigate("/")} className="mt-4 rounded-2xl bg-[#FF5722] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-500">
+                    Explorer les événements
+                  </button>
+                </div>
+              )}
+
+              {bookings.map((b) => {
+                const eventTitle = eventMap[b.eventId];
+                return (
+                  <div key={b.id} className="rounded-[24px] border border-white/8 bg-slate-950/60 p-5 transition hover:border-orange-400/30">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-white">{reservation.eventName}</h3>
-                        <div className="mt-2 space-y-1 text-sm text-slate-400">
-                          <p>📅 {reservation.date}</p>
-                          <p>🎫 {reservation.quantity} place{reservation.quantity > 1 ? "s" : ""}</p>
-                          <p className="text-xs text-orange-300">Code: {reservation.code}</p>
+                        <h3 className="font-semibold text-white">
+                          {eventTitle || `Événement #${b.eventId}`}
+                        </h3>
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                          <span>📅 {new Date(b.dateReservation).toLocaleDateString("fr-FR")}</span>
+                          <span>🎫 {b.nombrePlaces} place{b.nombrePlaces > 1 ? "s" : ""}</span>
                         </div>
+                        <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${STATUT_STYLE[b.statut] ?? "bg-slate-700 text-slate-300"}`}>
+                          {b.statut}
+                        </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => downloadTicketPDF(reservation)}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-[#FF5722] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
-                      >
-                        <PDFIcon />
-                        <span>Télécharger</span>
+                      <button onClick={() => downloadTicket(b, eventTitle)}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-[#FF5722] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-500">
+                        <PDFIcon /> Télécharger
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           )}
 
-          {/* Mes favoris */}
+          {/* ── Mes favoris ── */}
           {activeTab === "Mes favoris" && (
             <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
               <h2 className="text-2xl font-extrabold text-white">Mes favoris</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-                {savedCount > 0
-                  ? `Vous avez ${savedCount} événement${savedCount > 1 ? "s" : ""} dans vos favoris.`
-                  : "Vous n'avez pas encore d'événement dans vos favoris. Commencez à explorer !"}
-              </p>
+              {savedEventObjects.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-400">Aucun favori enregistré.</p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {savedEventObjects.map((ev) => (
+                    <button key={ev.id} onClick={() => navigate(`/event/${ev.id}`)}
+                      className="flex w-full items-center gap-4 rounded-2xl border border-white/8 bg-slate-900/50 p-4 text-left transition hover:border-orange-400/30">
+                      <img src={ev.image} alt={ev.title} className="h-14 w-14 shrink-0 rounded-xl object-cover" onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=200"; }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-white">{ev.title}</p>
+                        <p className="truncate text-xs text-slate-400">{ev.location} • {ev.date}</p>
+                      </div>
+                      <span className="shrink-0 text-sm font-bold text-orange-300">{ev.price}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Ajouter un événement */}
+          {/* ── Ajouter un événement ── */}
           {activeTab === "➕ Ajouter un événement" && (
             <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
-              <h2 className="text-2xl font-extrabold text-white">Créer un nouvel événement</h2>
-              
-              <form onSubmit={handleSubmitEvent} className="mt-6 space-y-6">
+              <h2 className="text-2xl font-extrabold text-white">Créer un événement</h2>
+
+              <form onSubmit={handleSubmitEvent} className="mt-6 space-y-5">
+
                 {/* Titre */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Titre de l'événement</label>
-                  <input
-                    type="text"
-                    name="eventTitle"
-                    value={formData.eventTitle}
-                    onChange={handleFormChange}
-                    required
-                    placeholder="Ex: Concert Premium - Artiste International"
-                    className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  />
+                  <label className="mb-2 block text-sm font-semibold text-white">Titre *</label>
+                  <input type="text" name="titre" value={formData.titre} onChange={handleFormChange} required placeholder="Concert Premium..." className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
                 </div>
 
                 {/* Catégorie */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Catégorie</label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleFormChange}
-                    className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  >
-                    <option>Musique</option>
-                    <option>Cinéma</option>
-                    <option>Sport</option>
-                    <option>Voyage</option>
-                    <option>Loisir</option>
-                    <option>Conférence</option>
+                  <label className="mb-2 block text-sm font-semibold text-white">Catégorie *</label>
+                  <select name="categorie" value={formData.categorie} onChange={handleFormChange} className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400">
+                    {["Concert", "Cinema", "Theatre", "Voyage"].map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Description</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleFormChange}
-                    required
-                    placeholder="Décrivez votre événement en détail..."
-                    rows="4"
-                    className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  />
+                  <label className="mb-2 block text-sm font-semibold text-white">Description *</label>
+                  <textarea name="description" value={formData.description} onChange={handleFormChange} required rows="3" placeholder="Décrivez l'événement..." className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
                 </div>
 
-                {/* Grille: Lieu, Date */}
+                {/* Lieu + Date */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Lieu</label>
-                    <input
-                      type="text"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleFormChange}
-                      required
-                      placeholder="Ex: Casablanca, Maroc"
-                      className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    />
+                    <label className="mb-2 block text-sm font-semibold text-white">Lieu *</label>
+                    <input type="text" name="lieu" value={formData.lieu} onChange={handleFormChange} required placeholder="Casablanca, Morocco Mall" className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Date</label>
-                    <input
-                      type="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleFormChange}
-                      required
-                      className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    />
+                    <label className="mb-2 block text-sm font-semibold text-white">Date *</label>
+                    <input type="date" name="date" value={formData.date} onChange={handleFormChange} required className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
                   </div>
                 </div>
 
-                {/* Grille: Prix, Places disponibles */}
+                {/* Prix + Places */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Prix du billet (DH)</label>
-                    <input
-                      type="number"
-                      name="ticketPrice"
-                      value={formData.ticketPrice}
-                      onChange={handleFormChange}
-                      required
-                      placeholder="Ex: 150"
-                      min="0"
-                      className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    />
+                    <label className="mb-2 block text-sm font-semibold text-white">Prix (DH) *</label>
+                    <input type="number" name="prix" value={formData.prix} onChange={handleFormChange} required min="0" step="0.5" placeholder="150" className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Places disponibles</label>
-                    <input
-                      type="number"
-                      name="availablePlaces"
-                      value={formData.availablePlaces}
-                      onChange={handleFormChange}
-                      required
-                      placeholder="Ex: 100"
-                      min="1"
-                      className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    />
+                    <label className="mb-2 block text-sm font-semibold text-white">Places disponibles *</label>
+                    <input type="number" name="placesDisponibles" value={formData.placesDisponibles} onChange={handleFormChange} required min="1" placeholder="100" className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
                   </div>
                 </div>
 
                 {/* Upload image */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Image de l'événement</label>
-                  <div className="rounded-2xl border-2 border-dashed border-white/20 bg-slate-900/50 p-8 text-center hover:border-orange-400/50 transition">
-                    <input
-                      type="file"
-                      name="image"
-                      accept="image/*"
-                      onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] })}
-                      className="hidden"
-                      id="imageUpload"
-                    />
-                    <label htmlFor="imageUpload" className="cursor-pointer">
-                      <p className="text-sm text-slate-400">📤 Cliquez pour télécharger une image</p>
-                      <p className="mt-1 text-xs text-slate-500">PNG, JPG (max. 5MB)</p>
-                    </label>
-                  </div>
+                  <label className="mb-2 block text-sm font-semibold text-white">Image de l'événement</label>
+                  {imagePreview ? (
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10">
+                      <img src={imagePreview} alt="Aperçu" className="h-48 w-full object-cover" />
+                      <button type="button" onClick={removeImage}
+                        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/90 text-slate-200 transition hover:bg-red-500 hover:text-white text-lg leading-none">
+                        ×
+                      </button>
+                      <div className="absolute bottom-3 left-3 rounded-xl bg-slate-900/80 px-3 py-1 text-xs text-slate-300">
+                        {imageFile?.name}
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDrop={handleDrop}
+                      onDragOver={(e) => e.preventDefault()}
+                      className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/20 bg-slate-900/50 p-10 text-center transition hover:border-orange-400/50 hover:bg-slate-900/80"
+                    >
+                      <span className="text-slate-400"><UploadIcon /></span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-300">Cliquez ou glissez une image</p>
+                        <p className="mt-1 text-xs text-slate-500">PNG, JPG, WEBP — max 10 MB</p>
+                      </div>
+                    </div>
+                  )}
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                 </div>
 
-                {/* Boutons */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    className="flex-1 rounded-2xl bg-[#FF5722] px-6 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
-                  >
-                    ✅ Publier l'événement
+                {formError && (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{formError}</div>
+                )}
+                {formSuccess && (
+                  <div className="rounded-2xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-400">{formSuccess}</div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button type="submit" disabled={formLoading}
+                    className="flex-1 rounded-2xl bg-[#FF5722] px-6 py-3 text-sm font-bold text-white transition hover:bg-orange-500 disabled:opacity-60">
+                    {uploading ? "Upload image..." : formLoading ? "Publication..." : "Publier l'événement"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({
-                      eventTitle: "",
-                      category: "Musique",
-                      description: "",
-                      location: "",
-                      date: "",
-                      ticketPrice: "",
-                      availablePlaces: "",
-                      image: null,
-                    })}
-                    className="rounded-2xl border border-white/8 bg-slate-900 px-6 py-3 text-sm font-bold text-slate-300 transition hover:text-white"
-                  >
+                  <button type="button" onClick={() => { setFormData(EMPTY_FORM); removeImage(); setFormError(""); setFormSuccess(""); }}
+                    className="rounded-2xl border border-white/8 bg-slate-900 px-6 py-3 text-sm font-bold text-slate-300 transition hover:text-white">
                     Réinitialiser
                   </button>
                 </div>
@@ -444,202 +406,40 @@ export function DashboardPage({ events, savedEvents }) {
             </div>
           )}
 
-          {/* Mes annonces */}
-          {activeTab === "Mes annonces" && (
-            <div className="space-y-4">
-              <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
-                <h2 className="text-2xl font-extrabold text-white">Mes annonces</h2>
-                <p className="mt-2 text-sm text-slate-400">
-                  Vous avez {mockAnnouncements.length} événement{mockAnnouncements.length > 1 ? "s" : ""} créé{mockAnnouncements.length > 1 ? "s" : ""}
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {mockAnnouncements.map((announcement) => (
-                  <div
-                    key={announcement.id}
-                    className="rounded-[24px] border border-white/8 bg-slate-950/60 overflow-hidden transition hover:border-orange-400/30"
-                  >
-                    {/* Image */}
-                    <div className="flex items-center justify-center h-32 bg-gradient-to-br from-slate-900 to-slate-800 text-4xl">
-                      {announcement.image}
-                    </div>
-
-                    {/* Contenu */}
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h3 className="font-semibold text-white line-clamp-2">{announcement.title}</h3>
-                        <p className="text-xs text-orange-300 mt-1">{announcement.category}</p>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="space-y-1 text-sm text-slate-400">
-                        <p>📅 {announcement.date}</p>
-                        <p>🎫 {announcement.ticketsSold}/{announcement.totalPlaces} billets vendus</p>
-                        <div className="mt-2 w-full bg-slate-800 rounded-full h-2">
-                          <div
-                            className="bg-[#FF5722] h-2 rounded-full transition"
-                            style={{ width: `${(announcement.ticketsSold / announcement.totalPlaces) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Statut */}
-                      <div className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${
-                        announcement.status === "Publié"
-                          ? "bg-green-500/20 text-green-300"
-                          : "bg-yellow-500/20 text-yellow-300"
-                      }`}>
-                        {announcement.status}
-                      </div>
-
-                      {/* Boutons */}
-                      <div className="flex gap-2 pt-2">
-                        <button
-                          type="button"
-                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-white/8 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:text-white hover:border-orange-400/30"
-                        >
-                          <EditIcon />
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-white/8 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:text-red-300 hover:border-red-400/30"
-                        >
-                          <DeleteIcon />
-                          Supprimer
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Paramètres */}
+          {/* ── Paramètres ── */}
           {activeTab === "⚙️ Paramètres" && (
-            <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6 max-w-2xl">
-              <h2 className="text-2xl font-extrabold text-white">Mes paramètres</h2>
-
-              <div className="mt-6 space-y-6">
-                {/* Section Profil */}
-                <div className="rounded-2xl border border-white/8 bg-slate-900/50 p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">Informations de profil</h3>
-                    <button
-                      type="button"
-                      onClick={() => setEditingProfile(!editingProfile)}
-                      className="text-xs font-semibold text-orange-300 hover:text-orange-200 transition"
-                    >
-                      {editingProfile ? "Annuler" : "Modifier"}
-                    </button>
+            <div className="max-w-2xl space-y-6">
+              <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
+                <h2 className="text-2xl font-extrabold text-white">Paramètres du compte</h2>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-slate-900/50 p-6 space-y-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-xl font-extrabold text-white">
+                    {initials}
                   </div>
-
-                  {editingProfile ? (
-                    <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }} className="space-y-4">
-                      {/* Avatar */}
-                      <div>
-                        <label className="block text-sm font-semibold text-white mb-2">Photo de profil</label>
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-xl font-extrabold text-white">
-                            {profileData.avatar}
-                          </div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            id="avatarUpload"
-                          />
-                          <label
-                            htmlFor="avatarUpload"
-                            className="rounded-xl border border-white/8 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 cursor-pointer hover:text-white transition"
-                          >
-                            Changer
-                          </label>
-                        </div>
-                      </div>
-
-                      {/* Nom */}
-                      <div>
-                        <label className="block text-sm font-semibold text-white mb-2">Nom complet</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={profileData.name}
-                          onChange={handleProfileChange}
-                          className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                        />
-                      </div>
-
-                      {/* Email */}
-                      <div>
-                        <label className="block text-sm font-semibold text-white mb-2">Email</label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={profileData.email}
-                          onChange={handleProfileChange}
-                          className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                        />
-                      </div>
-
-                      {/* Téléphone */}
-                      <div>
-                        <label className="block text-sm font-semibold text-white mb-2">Téléphone</label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={profileData.phone}
-                          onChange={handleProfileChange}
-                          className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                        />
-                      </div>
-
-                      {/* Bouton Enregistrer */}
-                      <button
-                        type="submit"
-                        className="w-full rounded-2xl bg-[#FF5722] px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
-                      >
-                        ✅ Enregistrer les modifications
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-xl font-extrabold text-white">
-                          {profileData.avatar}
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-400">Nom</p>
-                          <p className="text-white font-semibold">{profileData.name}</p>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Email</p>
-                        <p className="text-white">{profileData.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Téléphone</p>
-                        <p className="text-white">{profileData.phone}</p>
-                      </div>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-xl font-bold text-white">{user.nom}</p>
+                    <p className="text-sm text-slate-400">{user.email}</p>
+                  </div>
                 </div>
-
-                {/* Section Sécurité */}
-                <div className="rounded-2xl border border-white/8 bg-slate-900/50 p-5">
-                  <h3 className="text-lg font-semibold text-white mb-4">Sécurité</h3>
-                  <button
-                    type="button"
-                    className="w-full rounded-2xl border border-white/8 bg-slate-800 px-4 py-3 text-sm font-bold text-slate-300 transition hover:text-white hover:border-orange-400/30"
-                  >
-                    🔐 Changer le mot de passe
-                  </button>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-slate-950/60 p-4">
+                    <p className="text-xs text-slate-400">Rôle</p>
+                    <p className="mt-1 font-semibold text-white">{user.role === "ROLE_CLIENT" ? "Client" : user.role}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-950/60 p-4">
+                    <p className="text-xs text-slate-400">Réservations</p>
+                    <p className="mt-1 font-semibold text-white">{bookings.length}</p>
+                  </div>
                 </div>
               </div>
+              <button onClick={() => { logout(); navigate("/"); }}
+                className="w-full rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400 transition hover:bg-red-500/20">
+                Se déconnecter
+              </button>
             </div>
           )}
+
         </div>
       </div>
     </section>
