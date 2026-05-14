@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { bookingsApi, eventsApi } from "../api/api";
+import { Logo } from "../components/Logo";
 
 const PDFIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
@@ -13,6 +14,12 @@ const PDFIcon = () => (
 const UploadIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8" aria-hidden="true">
     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 
@@ -48,10 +55,13 @@ function downloadTicket(booking, eventTitle) {
   URL.revokeObjectURL(url);
 }
 
+const EMPTY_CATEGORY = { nom: "", description: "", prix: "", placesDisponibles: "" };
+
 const EMPTY_FORM = {
-  titre: "", categorie: "Concert", description: "",
-  lieu: "", date: "", prix: "", placesDisponibles: "",
+  titre: "", type: "Concert", description: "", lieu: "", date: "",
 };
+
+const inputCls = "w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400";
 
 export function DashboardPage({ events, savedEvents, onEventCreated }) {
   const { user, logout } = useAuth();
@@ -61,9 +71,16 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
   // Réservations
   const [bookings, setBookings] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [eventMap, setEventMap] = useState({});
+
+  // Mes annonces
+  const [myEvents, setMyEvents] = useState([]);
+  const [myEventsLoading, setMyEventsLoading] = useState(false);
+  const [myEventsStats, setMyEventsStats] = useState({});
 
   // Création d'événement
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [categories, setCategories] = useState([{ ...EMPTY_CATEGORY }]);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -72,10 +89,15 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
   const [formError, setFormError] = useState("");
   const fileInputRef = useRef(null);
 
-  const tabs = ["Vue globale", "Mes reservations", "Mes favoris", "➕ Ajouter un événement", "⚙️ Paramètres"];
+  const tabs = [
+    "Vue globale",
+    "Mes reservations",
+    "Mes favoris",
+    "Mes annonces",
+    "➕ Ajouter un événement",
+    "⚙️ Paramètres",
+  ];
 
-  // Charge les réservations + noms d'événements
-  const [eventMap, setEventMap] = useState({});
   useEffect(() => {
     eventsApi.getAll()
       .then((list) => {
@@ -96,6 +118,34 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
       .catch(() => setBookings([]))
       .finally(() => setBookingsLoading(false));
   }, [user]);
+
+  // Charge les annonces de l'annonceur
+  useEffect(() => {
+    if (!user || activeTab !== "Mes annonces") return;
+    setMyEventsLoading(true);
+    eventsApi.getByAnnonceur(user.userId)
+      .then(async (list) => {
+        const eventsList = Array.isArray(list) ? list : [];
+        setMyEvents(eventsList);
+        // Charge les stats de réservation pour chaque événement
+        const statsMap = {};
+        await Promise.allSettled(
+          eventsList.map(async (ev) => {
+            try {
+              const bks = await bookingsApi.getByEvent(ev.id);
+              const bookingsList = Array.isArray(bks) ? bks : [];
+              const totalVendus = bookingsList.reduce((s, b) => s + (b.nombrePlaces || 0), 0);
+              statsMap[ev.id] = { totalVendus, bookings: bookingsList };
+            } catch {
+              statsMap[ev.id] = { totalVendus: 0, bookings: [] };
+            }
+          })
+        );
+        setMyEventsStats(statsMap);
+      })
+      .catch(() => setMyEvents([]))
+      .finally(() => setMyEventsLoading(false));
+  }, [user, activeTab]);
 
   // Gestion image
   function handleImageChange(e) {
@@ -124,10 +174,38 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
     setFormData((f) => ({ ...f, [name]: value }));
   }
 
+  // Gestion des catégories
+  function addCategory() {
+    setCategories((c) => [...c, { ...EMPTY_CATEGORY }]);
+  }
+
+  function removeCategory(idx) {
+    setCategories((c) => c.filter((_, i) => i !== idx));
+  }
+
+  function handleCategoryChange(idx, field, value) {
+    setCategories((c) => c.map((cat, i) => i === idx ? { ...cat, [field]: value } : cat));
+  }
+
+  function resetForm() {
+    setFormData(EMPTY_FORM);
+    setCategories([{ ...EMPTY_CATEGORY }]);
+    removeImage();
+    setFormError("");
+    setFormSuccess("");
+  }
+
   async function handleSubmitEvent(e) {
     e.preventDefault();
     setFormError("");
     setFormSuccess("");
+
+    const invalidCat = categories.find((c) => !c.nom.trim() || !c.prix || !c.placesDisponibles);
+    if (invalidCat) {
+      setFormError("Veuillez remplir le nom, le prix et les places de chaque catégorie.");
+      return;
+    }
+
     setFormLoading(true);
     try {
       let imageUrl = "";
@@ -137,19 +215,29 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
         imageUrl = result.url || "";
         setUploading(false);
       }
+
+      const totalPlaces = categories.reduce((s, c) => s + (parseInt(c.placesDisponibles) || 0), 0);
+      const firstPrix = parseFloat(categories[0]?.prix) || 0;
+
       await eventsApi.create({
         titre: formData.titre,
-        categorie: formData.categorie,
+        categorie: formData.type,
         description: formData.description,
         lieu: formData.lieu,
         date: formData.date,
-        prix: parseFloat(formData.prix) || 0,
-        placesDisponibles: parseInt(formData.placesDisponibles, 10) || 0,
+        prix: firstPrix,
+        placesDisponibles: totalPlaces,
         imageUrl,
+        categories: categories.map((c) => ({
+          nom: c.nom,
+          description: c.description,
+          prix: parseFloat(c.prix) || 0,
+          placesDisponibles: parseInt(c.placesDisponibles) || 0,
+        })),
       });
+
       setFormSuccess("Événement publié avec succès !");
-      setFormData(EMPTY_FORM);
-      removeImage();
+      resetForm();
       onEventCreated?.();
     } catch (err) {
       setUploading(false);
@@ -181,7 +269,13 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
 
         {/* Sidebar */}
         <aside className="sticky top-20 h-fit rounded-[28px] border border-white/8 bg-slate-950/70 p-5">
-          <div className="mb-5 flex items-center gap-3">
+
+          {/* Logo retour accueil */}
+          <Link to="/" className="mb-5 flex items-center gap-2 hover:opacity-80 transition">
+            <Logo showText={true} />
+          </Link>
+
+          <div className="mb-5 flex items-center gap-3 border-t border-white/8 pt-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-sm font-extrabold text-white">
               {initials}
             </div>
@@ -190,6 +284,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
               <p className="truncate text-xs text-slate-400">{user.email}</p>
             </div>
           </div>
+
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-300">Dashboard</p>
           <div className="mt-4 space-y-2">
             {tabs.map((item) => (
@@ -226,7 +321,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
               <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
                 <h2 className="text-2xl font-extrabold text-white">Bienvenue, {user.nom} !</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-400">
-                  Retrouvez ici vos réservations, favoris et créez vos propres événements.
+                  Retrouvez ici vos réservations, favoris, annonces et créez vos propres événements.
                 </p>
               </div>
             </>
@@ -290,7 +385,8 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                   {savedEventObjects.map((ev) => (
                     <button key={ev.id} onClick={() => navigate(`/event/${ev.id}`)}
                       className="flex w-full items-center gap-4 rounded-2xl border border-white/8 bg-slate-900/50 p-4 text-left transition hover:border-orange-400/30">
-                      <img src={ev.image} alt={ev.title} className="h-14 w-14 shrink-0 rounded-xl object-cover" onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=200"; }} />
+                      <img src={ev.image} alt={ev.title} className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=200"; }} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-white">{ev.title}</p>
                         <p className="truncate text-xs text-slate-400">{ev.location} • {ev.date}</p>
@@ -303,54 +399,242 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
             </div>
           )}
 
+          {/* ── Mes annonces ── */}
+          {activeTab === "Mes annonces" && (
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
+                <h2 className="text-2xl font-extrabold text-white">Mes annonces</h2>
+                <p className="mt-2 text-sm text-slate-400">
+                  {myEventsLoading
+                    ? "Chargement..."
+                    : `${myEvents.length} événement${myEvents.length !== 1 ? "s" : ""} publié${myEvents.length !== 1 ? "s" : ""}`}
+                </p>
+              </div>
+
+              {!myEventsLoading && myEvents.length === 0 && (
+                <div className="rounded-[24px] border border-dashed border-white/10 bg-slate-950/50 p-10 text-center">
+                  <p className="text-slate-400">Vous n'avez pas encore publié d'événement.</p>
+                  <button onClick={() => setActiveTab("➕ Ajouter un événement")}
+                    className="mt-4 rounded-2xl bg-[#FF5722] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-500">
+                    Créer mon premier événement
+                  </button>
+                </div>
+              )}
+
+              {myEvents.map((ev) => {
+                const stats = myEventsStats[ev.id] || { totalVendus: 0, bookings: [] };
+                const placesRestantes = (ev.placesDisponibles || 0) - stats.totalVendus;
+                const tauxRemplissage = ev.placesDisponibles
+                  ? Math.round((stats.totalVendus / ev.placesDisponibles) * 100)
+                  : 0;
+
+                return (
+                  <div key={ev.id} className="rounded-[24px] border border-white/8 bg-slate-950/60 p-6 transition hover:border-orange-400/30">
+                    {/* En-tête événement */}
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      {ev.imageUrl && (
+                        <img src={ev.imageUrl} alt={ev.titre}
+                          className="h-20 w-32 shrink-0 rounded-2xl object-cover"
+                          onError={(e) => { e.target.style.display = "none"; }} />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-bold text-white truncate">{ev.titre}</h3>
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                          {ev.lieu && <span>📍 {ev.lieu}</span>}
+                          {ev.date && <span>📅 {new Date(ev.date).toLocaleDateString("fr-FR")}</span>}
+                          {ev.categorie && (
+                            <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-semibold text-orange-300">
+                              {ev.categorie}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Statistiques globales */}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
+                        <p className="text-xs text-slate-400 mb-1">Tickets vendus</p>
+                        <p className="text-2xl font-extrabold text-white">{stats.totalVendus}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
+                        <p className="text-xs text-slate-400 mb-1">Places restantes</p>
+                        <p className={`text-2xl font-extrabold ${placesRestantes <= 5 ? "text-red-400" : "text-white"}`}>
+                          {placesRestantes < 0 ? 0 : placesRestantes}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
+                        <p className="text-xs text-slate-400 mb-1">Taux de remplissage</p>
+                        <p className="text-2xl font-extrabold text-orange-300">{tauxRemplissage}%</p>
+                      </div>
+                    </div>
+
+                    {/* Barre de remplissage */}
+                    <div className="mt-4">
+                      <div className="mb-1 flex justify-between text-xs text-slate-500">
+                        <span>0</span>
+                        <span>{ev.placesDisponibles} places total</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-[#FF5722] to-orange-400 transition-all"
+                          style={{ width: `${Math.min(tauxRemplissage, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Catégories de billets (si présentes) */}
+                    {Array.isArray(ev.categories) && ev.categories.length > 0 && (
+                      <div className="mt-5">
+                        <p className="mb-3 text-sm font-semibold text-slate-300">Catégories de billets</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {ev.categories.map((cat, i) => {
+                            const vendusCat = stats.bookings
+                              .filter((b) => b.categorieId === cat.id || b.categorie === cat.nom)
+                              .reduce((s, b) => s + (b.nombrePlaces || 0), 0);
+                            const restesCat = (cat.placesDisponibles || 0) - vendusCat;
+                            return (
+                              <div key={i} className="rounded-2xl border border-white/8 bg-slate-900/40 p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-semibold text-white text-sm">{cat.nom}</span>
+                                  <span className="text-sm font-bold text-orange-300">{cat.prix} DH</span>
+                                </div>
+                                {cat.description && (
+                                  <p className="text-xs text-slate-400 mb-2 line-clamp-2">{cat.description}</p>
+                                )}
+                                <div className="flex justify-between text-xs text-slate-400">
+                                  <span>🎫 {vendusCat} vendus</span>
+                                  <span className={restesCat <= 3 ? "text-red-400 font-semibold" : ""}>
+                                    {restesCat < 0 ? 0 : restesCat} restants
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* ── Ajouter un événement ── */}
           {activeTab === "➕ Ajouter un événement" && (
             <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
               <h2 className="text-2xl font-extrabold text-white">Créer un événement</h2>
 
-              <form onSubmit={handleSubmitEvent} className="mt-6 space-y-5">
+              <form onSubmit={handleSubmitEvent} className="mt-6 space-y-6">
 
                 {/* Titre */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-white">Titre *</label>
-                  <input type="text" name="titre" value={formData.titre} onChange={handleFormChange} required placeholder="Concert Premium..." className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                  <input type="text" name="titre" value={formData.titre} onChange={handleFormChange} required
+                    placeholder="Concert Premium..." className={inputCls} />
                 </div>
 
-                {/* Catégorie */}
+                {/* Type d'événement */}
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-white">Catégorie *</label>
-                  <select name="categorie" value={formData.categorie} onChange={handleFormChange} className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400">
-                    {["Concert", "Cinema", "Theatre", "Voyage"].map((c) => <option key={c}>{c}</option>)}
+                  <label className="mb-2 block text-sm font-semibold text-white">Type d'événement *</label>
+                  <select name="type" value={formData.type} onChange={handleFormChange}
+                    className={inputCls}>
+                    {["Concert", "Cinema", "Theatre", "Voyage", "Sport", "Conférence", "Festival", "Autre"].map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Description */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-white">Description *</label>
-                  <textarea name="description" value={formData.description} onChange={handleFormChange} required rows="3" placeholder="Décrivez l'événement..." className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                  <textarea name="description" value={formData.description} onChange={handleFormChange} required rows="3"
+                    placeholder="Décrivez l'événement..." className={inputCls} />
                 </div>
 
                 {/* Lieu + Date */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">Lieu *</label>
-                    <input type="text" name="lieu" value={formData.lieu} onChange={handleFormChange} required placeholder="Casablanca, Morocco Mall" className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    <input type="text" name="lieu" value={formData.lieu} onChange={handleFormChange} required
+                      placeholder="Casablanca, Morocco Mall" className={inputCls} />
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">Date *</label>
-                    <input type="date" name="date" value={formData.date} onChange={handleFormChange} required className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    <input type="date" name="date" value={formData.date} onChange={handleFormChange} required
+                      className={inputCls} />
                   </div>
                 </div>
 
-                {/* Prix + Places */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-white">Prix (DH) *</label>
-                    <input type="number" name="prix" value={formData.prix} onChange={handleFormChange} required min="0" step="0.5" placeholder="150" className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                {/* ── Catégories de billets ── */}
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <label className="text-sm font-semibold text-white">
+                      Catégories de billets *
+                      <span className="ml-2 text-xs font-normal text-slate-400">
+                        ({categories.length} catégorie{categories.length > 1 ? "s" : ""})
+                      </span>
+                    </label>
+                    <button type="button" onClick={addCategory}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-orange-400/30 bg-orange-500/10 px-4 py-2 text-sm font-semibold text-orange-300 transition hover:bg-orange-500/20">
+                      <PlusIcon /> Ajouter une catégorie
+                    </button>
                   </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-white">Places disponibles *</label>
-                    <input type="number" name="placesDisponibles" value={formData.placesDisponibles} onChange={handleFormChange} required min="1" placeholder="100" className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+
+                  <div className="space-y-4">
+                    {categories.map((cat, idx) => (
+                      <div key={idx} className="rounded-2xl border border-white/10 bg-slate-900/60 p-5">
+                        <div className="mb-4 flex items-center justify-between">
+                          <span className="text-sm font-bold text-orange-300">
+                            Catégorie {idx + 1}
+                          </span>
+                          {categories.length > 1 && (
+                            <button type="button" onClick={() => removeCategory(idx)}
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-500/20 hover:text-red-400 text-lg leading-none">
+                              ×
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {/* Nom */}
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-300">Nom *</label>
+                            <input type="text" value={cat.nom}
+                              onChange={(e) => handleCategoryChange(idx, "nom", e.target.value)}
+                              required placeholder="Ex : VIP, Standard, Early Bird..."
+                              className={inputCls} />
+                          </div>
+
+                          {/* Prix */}
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-300">Prix (DH) *</label>
+                            <input type="number" value={cat.prix} min="0" step="0.5"
+                              onChange={(e) => handleCategoryChange(idx, "prix", e.target.value)}
+                              required placeholder="150"
+                              className={inputCls} />
+                          </div>
+
+                          {/* Places */}
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-300">Places disponibles *</label>
+                            <input type="number" value={cat.placesDisponibles} min="1"
+                              onChange={(e) => handleCategoryChange(idx, "placesDisponibles", e.target.value)}
+                              required placeholder="100"
+                              className={inputCls} />
+                          </div>
+
+                          {/* Description catégorie */}
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-300">Description</label>
+                            <input type="text" value={cat.description}
+                              onChange={(e) => handleCategoryChange(idx, "description", e.target.value)}
+                              placeholder="Accès lounge, repas inclus..."
+                              className={inputCls} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -397,7 +681,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                     className="flex-1 rounded-2xl bg-[#FF5722] px-6 py-3 text-sm font-bold text-white transition hover:bg-orange-500 disabled:opacity-60">
                     {uploading ? "Upload image..." : formLoading ? "Publication..." : "Publier l'événement"}
                   </button>
-                  <button type="button" onClick={() => { setFormData(EMPTY_FORM); removeImage(); setFormError(""); setFormSuccess(""); }}
+                  <button type="button" onClick={resetForm}
                     className="rounded-2xl border border-white/8 bg-slate-900 px-6 py-3 text-sm font-bold text-slate-300 transition hover:text-white">
                     Réinitialiser
                   </button>
