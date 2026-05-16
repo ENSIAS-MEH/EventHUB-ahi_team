@@ -220,6 +220,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
       const firstPrix = parseFloat(categories[0]?.prix) || 0;
 
       await eventsApi.create({
+        annonceurId: user.userId,
         titre: formData.titre,
         categorie: formData.type,
         description: formData.description,
@@ -423,7 +424,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
 
               {myEvents.map((ev) => {
                 const stats = myEventsStats[ev.id] || { totalVendus: 0, bookings: [] };
-                const placesRestantes = (ev.placesDisponibles || 0) - stats.totalVendus;
+                const placesRestantes = (ev.placesDisponibles || 0) ;
                 const tauxRemplissage = ev.placesDisponibles
                   ? Math.round((stats.totalVendus / ev.placesDisponibles) * 100)
                   : 0;
