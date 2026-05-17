@@ -27,6 +27,14 @@ const STATUT_STYLE = {
   CONFIRMEE: "bg-green-500/20 text-green-300",
   ANNULEE: "bg-red-500/20 text-red-400",
   EN_ATTENTE: "bg-orange-500/20 text-orange-300",
+  EN_ATTENTE_PAIEMENT: "bg-yellow-500/20 text-yellow-300",
+};
+
+const STATUT_LABEL = {
+  CONFIRMEE: "Confirmée",
+  ANNULEE: "Annulée",
+  EN_ATTENTE: "En attente",
+  EN_ATTENTE_PAIEMENT: "En attente de paiement",
 };
 
 function downloadTicket(booking, eventTitle) {
@@ -55,6 +63,135 @@ function downloadTicket(booking, eventTitle) {
   URL.revokeObjectURL(url);
 }
 
+const PAYMENT_INPUT_CLS = "w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400";
+
+function PaymentModal({ booking, eventInfo, onClose, onSuccess }) {
+  const [form, setForm] = useState({ nom: "", carte: "", expiration: "", cvv: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const eventTitle = eventInfo?.titre || `Événement #${booking.eventId}`;
+  const prix = eventInfo?.prix;
+  const totalStr = prix != null ? `${(prix * booking.nombrePlaces).toFixed(2)} DH` : "—";
+
+  function validate() {
+    if (!form.nom.trim()) return "Le nom du titulaire est requis.";
+    if (form.carte.replace(/\D/g, "").length < 12) return "Le numéro de carte doit contenir au moins 12 chiffres.";
+    if (!form.expiration.trim()) return "La date d'expiration est requise.";
+    if (!/^\d{3}$/.test(form.cvv.trim())) return "Le CVV doit contenir exactement 3 chiffres.";
+    return null;
+  }
+
+  async function handlePay(e) {
+    e.preventDefault();
+    const err = validate();
+    if (err) { setError(err); return; }
+    setLoading(true);
+    setError("");
+    try {
+      await bookingsApi.confirmer(booking.id);
+      onSuccess();
+    } catch (e) {
+      setError(e.message || "Erreur lors du paiement.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[28px] border border-stroke bg-panel/95 p-8 shadow-glow">
+        <div className="mb-6">
+          <h2 className="text-xl font-extrabold text-white">Paiement sécurisé</h2>
+          <p className="mt-1 text-sm text-slate-400 truncate">{eventTitle}</p>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-white/8 bg-slate-950/50 p-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-400">Nombre de places</span>
+            <span className="font-semibold text-white">{booking.nombrePlaces}</span>
+          </div>
+          <div className="flex justify-between text-sm border-t border-white/8 pt-2 mt-2">
+            <span className="text-slate-400">Total à payer</span>
+            <span className="text-lg font-extrabold text-orange-300">{totalStr}</span>
+          </div>
+        </div>
+
+        <form onSubmit={handlePay} className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white">Nom du titulaire</label>
+            <input
+              type="text"
+              placeholder="Mohammed Alami"
+              value={form.nom}
+              onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))}
+              className={PAYMENT_INPUT_CLS}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white">Numéro de carte</label>
+            <input
+              type="text"
+              placeholder="1234 5678 9012 3456"
+              maxLength={19}
+              value={form.carte}
+              onChange={(e) => setForm((f) => ({ ...f, carte: e.target.value }))}
+              className={PAYMENT_INPUT_CLS}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-white">Date d'expiration</label>
+              <input
+                type="text"
+                placeholder="MM/AA"
+                maxLength={5}
+                value={form.expiration}
+                onChange={(e) => setForm((f) => ({ ...f, expiration: e.target.value }))}
+                className={PAYMENT_INPUT_CLS}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-white">CVV</label>
+              <input
+                type="text"
+                placeholder="123"
+                maxLength={3}
+                value={form.cvv}
+                onChange={(e) => setForm((f) => ({ ...f, cvv: e.target.value }))}
+                className={PAYMENT_INPUT_CLS}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 rounded-2xl bg-[#FF5722] px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-500 disabled:opacity-60"
+            >
+              {loading ? "Traitement..." : "Confirmer le paiement"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-300 transition hover:text-white"
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const EMPTY_CATEGORY = { nom: "", description: "", prix: "", placesDisponibles: "" };
 
 const EMPTY_FORM = {
@@ -72,6 +209,8 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
   const [bookings, setBookings] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [eventMap, setEventMap] = useState({});
+  const [payingBooking, setPayingBooking] = useState(null);
+  const [paymentSuccessMsg, setPaymentSuccessMsg] = useState("");
 
   // Mes annonces
   const [myEvents, setMyEvents] = useState([]);
@@ -103,7 +242,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
       .then((list) => {
         if (Array.isArray(list)) {
           const map = {};
-          list.forEach((e) => { map[e.id] = e.titre; });
+          list.forEach((e) => { map[e.id] = { titre: e.titre, prix: e.prix }; });
           setEventMap(map);
         }
       })
@@ -134,10 +273,13 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
             try {
               const bks = await bookingsApi.getByEvent(ev.id);
               const bookingsList = Array.isArray(bks) ? bks : [];
-              const totalVendus = bookingsList.reduce((s, b) => s + (b.nombrePlaces || 0), 0);
-              statsMap[ev.id] = { totalVendus, bookings: bookingsList };
+              const confirmedBookings = bookingsList.filter((b) => b.statut === "CONFIRMEE");
+              const activeBookings = bookingsList.filter((b) => b.statut !== "ANNULEE");
+              const totalVendus = confirmedBookings.reduce((s, b) => s + (b.nombrePlaces || 0), 0);
+              const totalReserves = activeBookings.reduce((s, b) => s + (b.nombrePlaces || 0), 0);
+              statsMap[ev.id] = { totalVendus, totalReserves, bookings: bookingsList };
             } catch {
-              statsMap[ev.id] = { totalVendus: 0, bookings: [] };
+              statsMap[ev.id] = { totalVendus: 0, totalReserves: 0, bookings: [] };
             }
           })
         );
@@ -229,6 +371,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
         prix: firstPrix,
         placesDisponibles: totalPlaces,
         imageUrl,
+        annonceurId: user.userId,
         categories: categories.map((c) => ({
           nom: c.nom,
           description: c.description,
@@ -265,6 +408,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
   }
 
   return (
+    <>
     <section className="rounded-[32px] border border-stroke bg-panel/80 p-6 shadow-glow sm:p-8">
       <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
 
@@ -347,27 +491,48 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                 </div>
               )}
 
+              {paymentSuccessMsg && (
+                <div className="rounded-2xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+                  {paymentSuccessMsg}
+                </div>
+              )}
+
               {bookings.map((b) => {
-                const eventTitle = eventMap[b.eventId];
+                const eventInfo = eventMap[b.eventId];
+                const eventTitle = eventInfo?.titre || `Événement #${b.eventId}`;
                 return (
                   <div key={b.id} className="rounded-[24px] border border-white/8 bg-slate-950/60 p-5 transition hover:border-orange-400/30">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex-1">
                         <h3 className="font-semibold text-white">
-                          {eventTitle || `Événement #${b.eventId}`}
+                          {eventTitle}
                         </h3>
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
                           <span>📅 {new Date(b.dateReservation).toLocaleDateString("fr-FR")}</span>
                           <span>🎫 {b.nombrePlaces} place{b.nombrePlaces > 1 ? "s" : ""}</span>
                         </div>
                         <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${STATUT_STYLE[b.statut] ?? "bg-slate-700 text-slate-300"}`}>
-                          {b.statut}
+                          {STATUT_LABEL[b.statut] ?? b.statut}
                         </span>
                       </div>
-                      <button onClick={() => downloadTicket(b, eventTitle)}
-                        className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-[#FF5722] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-500">
-                        <PDFIcon /> Télécharger
-                      </button>
+                      <div className="flex shrink-0 gap-2">
+                        {b.statut === "EN_ATTENTE_PAIEMENT" && (
+                          <button
+                            onClick={() => { setPaymentSuccessMsg(""); setPayingBooking(b); }}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+                          >
+                            💳 Payer
+                          </button>
+                        )}
+                        {b.statut === "CONFIRMEE" && (
+                          <button
+                            onClick={() => downloadTicket(b, eventTitle)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-[#FF5722] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
+                          >
+                            <PDFIcon /> Télécharger
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -423,10 +588,11 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
               )}
 
               {myEvents.map((ev) => {
-                const stats = myEventsStats[ev.id] || { totalVendus: 0, bookings: [] };
-                const placesRestantes = (ev.placesDisponibles || 0) ;
-                const tauxRemplissage = ev.placesDisponibles
-                  ? Math.round((stats.totalVendus / ev.placesDisponibles) * 100)
+                const stats = myEventsStats[ev.id] || { totalVendus: 0, totalReserves: 0, bookings: [] };
+                const placesRestantes = ev.placesDisponibles || 0;
+                const placesTotal = placesRestantes + (stats.totalReserves || 0);
+                const tauxRemplissage = placesTotal
+                  ? Math.round((stats.totalVendus / placesTotal) * 100)
                   : 0;
 
                 return (
@@ -474,7 +640,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                     <div className="mt-4">
                       <div className="mb-1 flex justify-between text-xs text-slate-500">
                         <span>0</span>
-                        <span>{ev.placesDisponibles} places total</span>
+                        <span>{placesTotal} places total</span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                         <div
@@ -727,6 +893,23 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
 
         </div>
       </div>
+
     </section>
+
+      {payingBooking && (
+        <PaymentModal
+          booking={payingBooking}
+          eventInfo={eventMap[payingBooking.eventId]}
+          onClose={() => setPayingBooking(null)}
+          onSuccess={() => {
+            setPayingBooking(null);
+            setPaymentSuccessMsg("Paiement effectué ! Votre réservation est maintenant confirmée.");
+            bookingsApi.getByUser(user.userId)
+              .then(setBookings)
+              .catch(() => {});
+          }}
+        />
+      )}
+    </>
   );
 }

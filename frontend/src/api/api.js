@@ -25,6 +25,9 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nom, email, password, telephone, age }),
     }).then(handleResponse),
+
+  verifyUser: (id) =>
+    fetch(`${AUTH_URL}/api/auth/users/${id}`).then(handleResponse),
 };
 
 export const eventsApi = {
@@ -64,4 +67,7 @@ export const bookingsApi = {
 
   getByEvent: (eventId) =>
     fetch(`${BOOKING_URL}/api/bookings/event/${eventId}`).then(handleResponse),
+
+  confirmer: (id) =>
+    fetch(`${BOOKING_URL}/api/bookings/${id}/confirmer`, { method: 'PUT' }).then(handleResponse),
 };

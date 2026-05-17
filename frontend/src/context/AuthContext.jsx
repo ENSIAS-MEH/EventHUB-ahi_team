@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { authApi } from '../api/api';
 
 const AuthContext = createContext(null);
@@ -12,6 +12,15 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
+
+  useEffect(() => {
+    const stored = localStorage.getItem('eventhub_user');
+    if (!stored) return;
+    let parsed;
+    try { parsed = JSON.parse(stored); } catch { localStorage.removeItem('eventhub_user'); setUser(null); return; }
+    authApi.verifyUser(parsed.userId)
+      .catch(() => { localStorage.removeItem('eventhub_user'); setUser(null); });
+  }, []);
 
   async function login(email, password) {
     const data = await authApi.login(email, password);

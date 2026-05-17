@@ -71,17 +71,20 @@ function BookingModal({ event, onClose }) {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20 text-3xl">
             ✓
           </div>
-          <h2 className="text-xl font-extrabold text-white">Réservation confirmée !</h2>
+          <h2 className="text-xl font-extrabold text-white">Réservation créée !</h2>
           <p className="mt-3 text-sm text-slate-400">
             {places} place{places > 1 ? "s" : ""} réservée{places > 1 ? "s" : ""} pour{" "}
             <span className="text-white font-semibold">{event.title}</span>.
+          </p>
+          <p className="mt-2 text-sm text-yellow-300 font-semibold">
+            Rendez-vous dans "Mes réservations" pour finaliser le paiement.
           </p>
           <div className="mt-6 flex gap-3">
             <button
               onClick={() => navigate("/dashboard")}
               className="flex-1 rounded-2xl bg-[#FF5722] px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
             >
-              Mes réservations
+              Payer maintenant
             </button>
             <button
               onClick={onClose}

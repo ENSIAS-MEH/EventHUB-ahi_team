@@ -18,7 +18,7 @@ public class BookingController {
 
     @PostMapping
     public Booking create(@RequestBody Booking b) {
-        b.setStatut("EN_ATTENTE");
+        b.setStatut("EN_ATTENTE_PAIEMENT");
         b.setDateReservation(LocalDateTime.now());
         Booking saved = repo.save(b);
         eventClient.decrementPlaces(b.getEventId(), b.getNombrePlaces());

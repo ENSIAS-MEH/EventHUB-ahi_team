@@ -8,5 +8,5 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name="event-service", url="${event.service.url}")
 public interface EventClient {
     @PutMapping("/api/events/{id}/decrement")
-    void decrementPlaces(@PathVariable Long id, @RequestParam int nombre);
+    void decrementPlaces(@PathVariable Long id, @RequestParam("count") Integer count);
 }
