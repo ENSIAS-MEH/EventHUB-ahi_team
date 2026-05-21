@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,5 +42,10 @@ public class AuthService {
         }
 
         return new AuthResponse("Connexion réussie", user.getId(), user.getNom(), user.getEmail(), user.getRole());
+    }
+
+    public Optional<AuthResponse> findById(Long id) {
+        return userRepository.findById(id)
+                .map(u -> new AuthResponse("OK", u.getId(), u.getNom(), u.getEmail(), u.getRole()));
     }
 }

@@ -36,4 +36,11 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
     }
+
+    @GetMapping("/users/{id}")
+    public ResponseEntity<?> getUser(@PathVariable Long id) {
+        return authService.findById(id)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Utilisateur introuvable"));
+    }
 }
