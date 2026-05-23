@@ -21,6 +21,11 @@ public class EventController {
         return repo.findById(id).orElseThrow();
     }
 
+    @GetMapping("/annonceur/{annonceurId}")
+    public List<Event> getByAnnonceur(@PathVariable Long annonceurId) {
+        return repo.findByAnnonceurId(annonceurId);
+    }
+
     @PostMapping
     public Event create(@RequestBody Event e) { return repo.save(e); }
 
@@ -33,9 +38,11 @@ public class EventController {
     public void delete(@PathVariable Long id) { repo.deleteById(id); }
 
     @PutMapping("/{id}/decrement")
-    public Event decrement(@PathVariable Long id) {
+    public Event decrement(@PathVariable Long id, @RequestParam(defaultValue = "1") Integer count) {
         Event e = repo.findById(id).orElseThrow();
-        e.setPlacesDisponibles(e.getPlacesDisponibles() - 1);
+        int currentPlaces = e.getPlacesDisponibles() == null ? 0 : e.getPlacesDisponibles();
+        int decrementBy = count == null || count < 1 ? 1 : count;
+        e.setPlacesDisponibles(Math.max(0, currentPlaces - decrementBy));
         return repo.save(e);
     }
 }

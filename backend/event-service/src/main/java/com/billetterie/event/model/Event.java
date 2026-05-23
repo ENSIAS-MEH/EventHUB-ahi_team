@@ -7,6 +7,7 @@ import lombok.Data;
 public class Event {
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;
+    private Long annonceurId;
     private String titre;
     private String description;
     private String categorie;
@@ -15,4 +16,5 @@ public class Event {
     private Double prix;
     private Integer placesDisponibles;
     private String imageUrl;
+    private Long annonceurId;
 }

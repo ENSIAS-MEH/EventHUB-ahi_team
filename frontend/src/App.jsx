@@ -3,7 +3,6 @@ import { Route, Routes, useLocation } from "react-router-dom";
 import { Footer } from "./components/Footer";
 import { FilterModal } from "./components/FilterModal";
 import { Header } from "./components/Header";
-import { events as staticEvents } from "./data/events";
 import { AuthProvider } from "./context/AuthContext";
 import { eventsApi } from "./api/api";
 import { AuthPage } from "./pages/AuthPage";
@@ -62,7 +61,7 @@ function AppContent() {
 
   useEffect(() => { fetchEvents(); }, []);
 
-  const events = apiEvents.length > 0 ? apiEvents : staticEvents;
+  const events = apiEvents;
 
   const filteredEvents = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();

@@ -19,17 +19,23 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }).then(handleResponse),
 
-  register: (nom, email, password) =>
+  register: (nom, email, password, telephone, age) =>
     fetch(`${AUTH_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nom, email, password }),
+      body: JSON.stringify({ nom, email, password, telephone, age }),
     }).then(handleResponse),
+
+  verifyUser: (id) =>
+    fetch(`${AUTH_URL}/api/auth/users/${id}`).then(handleResponse),
 };
 
 export const eventsApi = {
   getAll: () =>
     fetch(`${EVENT_URL}/api/events`).then(handleResponse),
+
+  getByAnnonceur: (userId) =>
+    fetch(`${EVENT_URL}/api/events/annonceur/${userId}`).then(handleResponse),
 
   create: (data) =>
     fetch(`${EVENT_URL}/api/events`, {
@@ -58,4 +64,10 @@ export const bookingsApi = {
 
   getByUser: (userId) =>
     fetch(`${BOOKING_URL}/api/bookings/user/${userId}`).then(handleResponse),
+
+  getByEvent: (eventId) =>
+    fetch(`${BOOKING_URL}/api/bookings/event/${eventId}`).then(handleResponse),
+
+  confirmer: (id) =>
+    fetch(`${BOOKING_URL}/api/bookings/${id}/confirmer`, { method: 'PUT' }).then(handleResponse),
 };
