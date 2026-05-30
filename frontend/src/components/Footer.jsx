@@ -10,7 +10,7 @@ export function Footer() {
       links: ["Evenements", "Cinema", "Concerts", "Voyages"],
     },
     {
-      title: "Guichet.com",
+      title: "EventHUB.com",
       links: ["A propos", "Partenaires", "Presse", "Contact"],
     },
     {
