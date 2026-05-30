@@ -334,7 +334,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
     setCategories([{ ...EMPTY_CATEGORY }]);
     removeImage();
     setFormError("");
-    setFormSuccess("");
+    // On ne vide plus le formSuccess ici pour qu'il ait le temps de s'afficher !
   }
 
   async function handleSubmitEvent(e) {
@@ -371,7 +371,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
         prix: firstPrix,
         placesDisponibles: totalPlaces,
         imageUrl,
-        annonceurId: user.userId,
         categories: categories.map((c) => ({
           nom: c.nom,
           description: c.description,
@@ -380,8 +379,17 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
         })),
       });
 
-      setFormSuccess("Événement publié avec succès !");
+      // 1. On nettoie le formulaire
       resetForm();
+      
+      // 2. On affiche le message de succès
+      setFormSuccess("Événement publié avec succès ! 🎉");
+      
+      // 3. On programme sa disparition dans 4 secondes
+      setTimeout(() => {
+        setFormSuccess("");
+      }, 4000);
+
       onEventCreated?.();
     } catch (err) {
       setUploading(false);
