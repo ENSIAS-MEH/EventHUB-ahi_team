@@ -70,4 +70,7 @@ export const bookingsApi = {
 
   confirmer: (id) =>
     fetch(`${BOOKING_URL}/api/bookings/${id}/confirmer`, { method: 'PUT' }).then(handleResponse),
+  
+  annuler: (id) =>
+    fetch(`${BOOKING_URL}/api/bookings/${id}/annuler`, { method: 'PUT' }).then(handleResponse),
 };

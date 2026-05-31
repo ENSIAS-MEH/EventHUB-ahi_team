@@ -37,32 +37,6 @@ const STATUT_LABEL = {
   EN_ATTENTE_PAIEMENT: "En attente de paiement",
 };
 
-function downloadTicket(booking, eventTitle) {
-  const code = `EVH-${String(booking.id).padStart(6, "0")}`;
-  const content = [
-    "TICKET EVENTHUB",
-    "==========================================",
-    "",
-    `Événement : ${eventTitle || `#${booking.eventId}`}`,
-    `Date réservation : ${new Date(booking.dateReservation).toLocaleDateString("fr-FR")}`,
-    `Nombre de places : ${booking.nombrePlaces}`,
-    `Statut : ${booking.statut}`,
-    `Code : ${code}`,
-    "",
-    "Ce billet doit être présenté à l'entrée.",
-    "==========================================",
-  ].join("\n");
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `ticket-${code}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 const PAYMENT_INPUT_CLS = "w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400";
 
 function PaymentModal({ booking, eventInfo, onClose, onSuccess }) {
@@ -258,7 +232,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
       .finally(() => setBookingsLoading(false));
   }, [user]);
 
-  // Charge les annonces de l'annonceur
   useEffect(() => {
     if (!user || activeTab !== "Mes annonces") return;
     setMyEventsLoading(true);
@@ -266,7 +239,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
       .then(async (list) => {
         const eventsList = Array.isArray(list) ? list : [];
         setMyEvents(eventsList);
-        // Charge les stats de réservation pour chaque événement
         const statsMap = {};
         await Promise.allSettled(
           eventsList.map(async (ev) => {
@@ -289,7 +261,44 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
       .finally(() => setMyEventsLoading(false));
   }, [user, activeTab]);
 
-  // Gestion image
+  // NOUVELLES FONCTIONS : Téléchargement du PDF et Annulation
+  const handleDownloadTicket = async (reservationId) => {
+    try {
+      // Assure-toi que ton Backend (Booking Service sur le port 8083) possède bien l'endpoint /ticket
+      const response = await fetch(`http://localhost:8083/api/bookings/${reservationId}/ticket`);
+      if (!response.ok) throw new Error("Erreur serveur lors du téléchargement");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `EventHub-Billet-${reservationId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Impossible de télécharger le billet. Vérifiez que votre backend est à jour avec la génération PDF.");
+    }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir annuler cette réservation ?")) return;
+    try {
+      setBookingsLoading(true);
+      await bookingsApi.annuler(bookingId); // S'assurer que cette méthode existe dans api.js
+      setPaymentSuccessMsg("Réservation annulée avec succès.");
+      // Rafraîchir la liste
+      const updated = await bookingsApi.getByUser(user.userId);
+      setBookings(updated);
+    } catch (err) {
+      alert("Erreur lors de l'annulation : " + err.message);
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+
   function handleImageChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -316,15 +325,8 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
     setFormData((f) => ({ ...f, [name]: value }));
   }
 
-  // Gestion des catégories
-  function addCategory() {
-    setCategories((c) => [...c, { ...EMPTY_CATEGORY }]);
-  }
-
-  function removeCategory(idx) {
-    setCategories((c) => c.filter((_, i) => i !== idx));
-  }
-
+  function addCategory() { setCategories((c) => [...c, { ...EMPTY_CATEGORY }]); }
+  function removeCategory(idx) { setCategories((c) => c.filter((_, i) => i !== idx)); }
   function handleCategoryChange(idx, field, value) {
     setCategories((c) => c.map((cat, i) => i === idx ? { ...cat, [field]: value } : cat));
   }
@@ -334,7 +336,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
     setCategories([{ ...EMPTY_CATEGORY }]);
     removeImage();
     setFormError("");
-    // On ne vide plus le formSuccess ici pour qu'il ait le temps de s'afficher !
   }
 
   async function handleSubmitEvent(e) {
@@ -379,17 +380,9 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
         })),
       });
 
-      // 1. On nettoie le formulaire
       resetForm();
-      
-      // 2. On affiche le message de succès
       setFormSuccess("Événement publié avec succès ! 🎉");
-      
-      // 3. On programme sa disparition dans 4 secondes
-      setTimeout(() => {
-        setFormSuccess("");
-      }, 4000);
-
+      setTimeout(() => setFormSuccess(""), 4000);
       onEventCreated?.();
     } catch (err) {
       setUploading(false);
@@ -422,12 +415,9 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
 
         {/* Sidebar */}
         <aside className="sticky top-20 h-fit rounded-[28px] border border-white/8 bg-slate-950/70 p-5">
-
-          {/* Logo retour accueil */}
           <Link to="/" className="mb-5 flex items-center gap-2 hover:opacity-80 transition">
             <Logo showText={true} />
           </Link>
-
           <div className="mb-5 flex items-center gap-3 border-t border-white/8 pt-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-sm font-extrabold text-white">
               {initials}
@@ -437,7 +427,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
               <p className="truncate text-xs text-slate-400">{user.email}</p>
             </div>
           </div>
-
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-300">Dashboard</p>
           <div className="mt-4 space-y-2">
             {tabs.map((item) => (
@@ -524,17 +513,26 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                         </span>
                       </div>
                       <div className="flex shrink-0 gap-2">
+                        {/* 🚨 NOUVEAUX BOUTONS ICI 🚨 */}
                         {b.statut === "EN_ATTENTE_PAIEMENT" && (
-                          <button
-                            onClick={() => { setPaymentSuccessMsg(""); setPayingBooking(b); }}
-                            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
-                          >
-                            💳 Payer
-                          </button>
+                          <>
+                            <button
+                              onClick={() => { setPaymentSuccessMsg(""); setPayingBooking(b); }}
+                              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+                            >
+                              💳 Payer
+                            </button>
+                            <button
+                              onClick={() => handleCancelBooking(b.id)}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-3 text-sm font-bold text-red-400 transition hover:bg-red-500/20"
+                            >
+                              Annuler
+                            </button>
+                          </>
                         )}
                         {b.statut === "CONFIRMEE" && (
                           <button
-                            onClick={() => downloadTicket(b, eventTitle)}
+                            onClick={() => handleDownloadTicket(b.id)}
                             className="inline-flex items-center gap-2 rounded-2xl bg-[#FF5722] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-500"
                           >
                             <PDFIcon /> Télécharger
@@ -599,13 +597,10 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                 const stats = myEventsStats[ev.id] || { totalVendus: 0, totalReserves: 0, bookings: [] };
                 const placesRestantes = ev.placesDisponibles || 0;
                 const placesTotal = placesRestantes + (stats.totalReserves || 0);
-                const tauxRemplissage = placesTotal
-                  ? Math.round((stats.totalVendus / placesTotal) * 100)
-                  : 0;
+                const tauxRemplissage = placesTotal ? Math.round((stats.totalVendus / placesTotal) * 100) : 0;
 
                 return (
                   <div key={ev.id} className="rounded-[24px] border border-white/8 bg-slate-950/60 p-6 transition hover:border-orange-400/30">
-                    {/* En-tête événement */}
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                       {ev.imageUrl && (
                         <img src={ev.imageUrl} alt={ev.titre}
@@ -626,7 +621,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                       </div>
                     </div>
 
-                    {/* Statistiques globales */}
                     <div className="mt-5 grid gap-3 sm:grid-cols-3">
                       <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
                         <p className="text-xs text-slate-400 mb-1">Tickets vendus</p>
@@ -644,7 +638,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                       </div>
                     </div>
 
-                    {/* Barre de remplissage */}
                     <div className="mt-4">
                       <div className="mb-1 flex justify-between text-xs text-slate-500">
                         <span>0</span>
@@ -657,38 +650,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                         />
                       </div>
                     </div>
-
-                    {/* Catégories de billets (si présentes) */}
-                    {Array.isArray(ev.categories) && ev.categories.length > 0 && (
-                      <div className="mt-5">
-                        <p className="mb-3 text-sm font-semibold text-slate-300">Catégories de billets</p>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {ev.categories.map((cat, i) => {
-                            const vendusCat = stats.bookings
-                              .filter((b) => b.categorieId === cat.id || b.categorie === cat.nom)
-                              .reduce((s, b) => s + (b.nombrePlaces || 0), 0);
-                            const restesCat = (cat.placesDisponibles || 0) - vendusCat;
-                            return (
-                              <div key={i} className="rounded-2xl border border-white/8 bg-slate-900/40 p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-semibold text-white text-sm">{cat.nom}</span>
-                                  <span className="text-sm font-bold text-orange-300">{cat.prix} DH</span>
-                                </div>
-                                {cat.description && (
-                                  <p className="text-xs text-slate-400 mb-2 line-clamp-2">{cat.description}</p>
-                                )}
-                                <div className="flex justify-between text-xs text-slate-400">
-                                  <span>🎫 {vendusCat} vendus</span>
-                                  <span className={restesCat <= 3 ? "text-red-400 font-semibold" : ""}>
-                                    {restesCat < 0 ? 0 : restesCat} restants
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -701,15 +662,12 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
               <h2 className="text-2xl font-extrabold text-white">Créer un événement</h2>
 
               <form onSubmit={handleSubmitEvent} className="mt-6 space-y-6">
-
-                {/* Titre */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-white">Titre *</label>
                   <input type="text" name="titre" value={formData.titre} onChange={handleFormChange} required
                     placeholder="Concert Premium..." className={inputCls} />
                 </div>
 
-                {/* Type d'événement */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-white">Type d'événement *</label>
                   <select name="type" value={formData.type} onChange={handleFormChange}
@@ -720,14 +678,12 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                   </select>
                 </div>
 
-                {/* Description */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-white">Description *</label>
                   <textarea name="description" value={formData.description} onChange={handleFormChange} required rows="3"
                     placeholder="Décrivez l'événement..." className={inputCls} />
                 </div>
 
-                {/* Lieu + Date */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">Lieu *</label>
@@ -772,7 +728,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
-                          {/* Nom */}
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-300">Nom *</label>
                             <input type="text" value={cat.nom}
@@ -781,7 +736,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                               className={inputCls} />
                           </div>
 
-                          {/* Prix */}
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-300">Prix (DH) *</label>
                             <input type="number" value={cat.prix} min="0" step="0.5"
@@ -790,7 +744,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                               className={inputCls} />
                           </div>
 
-                          {/* Places */}
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-300">Places disponibles *</label>
                             <input type="number" value={cat.placesDisponibles} min="1"
@@ -799,7 +752,6 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                               className={inputCls} />
                           </div>
 
-                          {/* Description catégorie */}
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-300">Description</label>
                             <input type="text" value={cat.description}
