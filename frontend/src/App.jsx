@@ -117,6 +117,7 @@ function AppContent() {
                 onToggleSaved={handleToggleSaved}
                 savedEvents={savedEvents}
                 loadingEvents={loadingEvents}
+                searchTerm={searchTerm}
               />
             } />
             <Route path="/event/:id" element={
