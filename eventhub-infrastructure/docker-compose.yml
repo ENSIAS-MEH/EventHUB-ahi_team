@@ -10,11 +10,12 @@ services:
       - "3306:3306"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 40
       start_period: 30s
 
   # 2. L'Annuaire Eureka
@@ -27,7 +28,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 8
+      retries: 40
       start_period: 40s
 
   # 3. Le service d'Authentification
@@ -91,3 +92,4 @@ services:
 
 volumes:
   event-uploads:
+  mysql_data:
