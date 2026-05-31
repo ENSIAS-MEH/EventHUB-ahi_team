@@ -57,6 +57,9 @@ function BookingModal({ event, onClose }) {
     try {
       await bookingsApi.create(user.userId, event.id, places);
       setSuccess(true);
+      
+      if (onSuccess) onSuccess(places); 
+
     } catch (err) {
       setError(err.message || "Erreur lors de la réservation.");
     } finally {
@@ -167,6 +170,8 @@ export function EventDetailsPage({ events, onToggleSaved, savedEvents }) {
   const [showBooking, setShowBooking] = useState(false);
   const event = events.find((item) => String(item.id) === id);
 
+  const [livePlaces, setLivePlaces] = useState(event ? event.placesDisponibles : null);
+
   if (!event) {
     return (
       <section className="rounded-[32px] border border-white/8 bg-panel/80 p-8">
@@ -210,9 +215,9 @@ export function EventDetailsPage({ events, onToggleSaved, savedEvents }) {
                 <span>{event.location}</span>
               </div>
               <p className="mt-2 text-sm text-slate-400">{event.date}</p>
-              {event.placesDisponibles != null && (
+              {livePlaces != null && (
                 <p className="mt-2 text-sm text-green-400">
-                  {event.placesDisponibles} place{event.placesDisponibles > 1 ? "s" : ""} disponible{event.placesDisponibles > 1 ? "s" : ""}
+                  {livePlaces} place{livePlaces > 1 ? "s" : ""} disponible{livePlaces > 1 ? "s" : ""}
                 </p>
               )}
             </div>
@@ -237,7 +242,11 @@ export function EventDetailsPage({ events, onToggleSaved, savedEvents }) {
       </section>
 
       {showBooking && (
-        <BookingModal event={event} onClose={() => setShowBooking(false)} />
+        <BookingModal 
+           event={event} 
+           onClose={() => setShowBooking(false)} 
+           onSuccess={(bookedPlaces) => setLivePlaces(livePlaces - bookedPlaces)} 
+        />
       )}
     </>
   );
