@@ -5,6 +5,7 @@ import com.billetterie.auth.dto.LoginRequest;
 import com.billetterie.auth.dto.RegisterRequest;
 import com.billetterie.auth.entity.User;
 import com.billetterie.auth.repository.UserRepository;
+import com.billetterie.auth.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,6 +18,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public void register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -28,6 +30,8 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole() != null ? request.getRole() : "ROLE_CLIENT")
+                .telephone(request.getTelephone())
+                .age(request.getAge())
                 .build();
 
         userRepository.save(user);
@@ -41,11 +45,12 @@ public class AuthService {
             throw new BadCredentialsException("Identifiants invalides");
         }
 
-        return new AuthResponse("Connexion réussie", user.getId(), user.getNom(), user.getEmail(), user.getRole());
+        String token = jwtService.generateToken(user.getId(), user.getRole());
+        return new AuthResponse("Connexion réussie", user.getId(), user.getNom(), user.getEmail(), user.getRole(), token);
     }
 
     public Optional<AuthResponse> findById(Long id) {
         return userRepository.findById(id)
-                .map(u -> new AuthResponse("OK", u.getId(), u.getNom(), u.getEmail(), u.getRole()));
+                .map(u -> new AuthResponse("OK", u.getId(), u.getNom(), u.getEmail(), u.getRole(), null));
     }
 }

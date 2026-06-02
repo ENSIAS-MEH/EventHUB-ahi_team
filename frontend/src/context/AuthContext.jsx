@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
       nom: data.nom,
       email: data.email,
       role: data.role,
+      token: data.token,
     };
     setUser(u);
     localStorage.setItem('eventhub_user', JSON.stringify(u));
