@@ -33,9 +33,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Lecture publique des événements et images
                 .requestMatchers(HttpMethod.GET, "/api/events/**", "/uploads/**").permitAll()
-                // Appel interne booking-service → event-service
                 .requestMatchers(HttpMethod.PUT, "/api/events/*/decrement").permitAll()
-                // Tout le reste nécessite un JWT valide
+                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

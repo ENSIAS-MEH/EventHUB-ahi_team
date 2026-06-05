@@ -32,4 +32,8 @@ public class User {
 
     private String telephone;
     private Integer age;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean enabled = true;
 }

@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { eventsApi } from "./api/api";
 import { AuthPage } from "./pages/AuthPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { EventDetailsPage } from "./pages/EventDetailsPage";
 import { HomePage } from "./pages/HomePage";
 
@@ -89,7 +90,7 @@ function AppContent() {
     );
   }
 
-  const isOnDashboard = location.pathname === "/dashboard";
+  const isOnDashboard = location.pathname === "/dashboard" || location.pathname === "/admin";
   const isOnAuth = location.pathname === "/auth";
 
   return (
@@ -134,6 +135,7 @@ function AppContent() {
                 onEventCreated={fetchEvents}
               />
             } />
+            <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="/auth" element={<AuthPage />} />
           </Routes>
         </main>

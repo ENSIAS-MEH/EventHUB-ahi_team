@@ -46,6 +46,13 @@ export const authApi = {
 
   verifyUser: (id) =>
     fetch(`${AUTH_URL}/api/auth/users/${id}`).then(handleResponse),
+
+  updateProfile: (id, data) =>
+    fetch(`${AUTH_URL}/api/auth/users/${id}/profile`, {
+      method: 'PUT',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    }).then(handleResponse),
 };
 
 export const eventsApi = {
@@ -107,4 +114,54 @@ export const bookingsApi = {
     fetch(`${BOOKING_URL}/api/bookings/${id}/ticket`, {
       headers: authHeaders(),
     }),
+};
+
+export const adminApi = {
+  // Auth
+  getUsers: () =>
+    fetch(`${AUTH_URL}/api/admin/users`, { headers: authHeaders() }).then(handleResponse),
+  changeRole: (id, role) =>
+    fetch(`${AUTH_URL}/api/admin/users/${id}/role`, {
+      method: 'PUT',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ role }),
+    }).then(handleResponse),
+  toggleUser: (id) =>
+    fetch(`${AUTH_URL}/api/admin/users/${id}/toggle`, {
+      method: 'PUT', headers: authHeaders(),
+    }).then(handleResponse),
+  deleteUser: (id) =>
+    fetch(`${AUTH_URL}/api/admin/users/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }).then(handleResponse),
+  getUserStats: () =>
+    fetch(`${AUTH_URL}/api/admin/stats`, { headers: authHeaders() }).then(handleResponse),
+
+  // Auth
+  getUser: (id) =>
+    fetch(`${AUTH_URL}/api/auth/users/${id}`, { headers: authHeaders() }).then(handleResponse),
+
+  // Events
+  getAllEvents: () =>
+    fetch(`${EVENT_URL}/api/admin/events`, { headers: authHeaders() }).then(handleResponse),
+  validerEvent: (id) =>
+    fetch(`${EVENT_URL}/api/admin/events/${id}/valider`, {
+      method: 'PUT', headers: authHeaders(),
+    }).then(handleResponse),
+  refuserEvent: (id) =>
+    fetch(`${EVENT_URL}/api/admin/events/${id}/refuser`, {
+      method: 'PUT', headers: authHeaders(),
+    }).then(handleResponse),
+  deleteEvent: (id) =>
+    fetch(`${EVENT_URL}/api/admin/events/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    }).then(handleResponse),
+  getEventStats: () =>
+    fetch(`${EVENT_URL}/api/admin/events/stats`, { headers: authHeaders() }).then(handleResponse),
+
+  // Bookings
+  getAllBookings: () =>
+    fetch(`${BOOKING_URL}/api/admin/bookings`, { headers: authHeaders() }).then(handleResponse),
+  getBookingStats: () =>
+    fetch(`${BOOKING_URL}/api/admin/bookings/stats`, { headers: authHeaders() }).then(handleResponse),
 };

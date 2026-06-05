@@ -4,7 +4,10 @@ import com.billetterie.event.model.Event;
 import com.billetterie.event.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/events")
@@ -13,7 +16,12 @@ public class EventController {
     private final EventRepository repo;
 
     @GetMapping
-    public List<Event> getAll() { return repo.findAll(); }
+    public List<Event> getAll() {
+        String today = LocalDate.now().toString();
+        return repo.findByStatut("VALIDE").stream()
+                .filter(e -> e.getDate() != null && e.getDate().compareTo(today) >= 0)
+                .collect(Collectors.toList());
+    }
 
     @GetMapping("/{id}")
     public Event getById(@PathVariable("id") Long id) {

@@ -1,4 +1,4 @@
-package com.billetterie.event.security;
+package com.billetterie.auth.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -48,9 +48,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     );
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
-            } catch (Exception ignored) {
-                // token invalide — on continue sans authentification
-            }
+            } catch (Exception ignored) {}
         }
 
         chain.doFilter(request, response);

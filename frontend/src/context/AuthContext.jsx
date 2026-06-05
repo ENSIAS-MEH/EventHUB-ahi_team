@@ -45,8 +45,16 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('eventhub_user');
   }
 
+  function updateUser(partial) {
+    setUser(prev => {
+      const updated = { ...prev, ...partial };
+      localStorage.setItem('eventhub_user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

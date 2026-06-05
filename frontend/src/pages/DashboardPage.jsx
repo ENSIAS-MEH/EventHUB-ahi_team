@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { bookingsApi, eventsApi } from "../api/api";
+import { authApi, bookingsApi, eventsApi } from "../api/api";
 import { Logo } from "../components/Logo";
 
 const PDFIcon = () => (
@@ -174,8 +174,155 @@ const EMPTY_FORM = {
 
 const inputCls = "w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400";
 
+const PROFILE_INPUT = "w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400";
+
+function EditProfileModal({ user, onClose, onSaved }) {
+  const [form, setForm] = useState({ nom: user.nom || "", telephone: "", age: "", currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  function handleChange(e) { setForm(f => ({ ...f, [e.target.name]: e.target.value })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    if (form.newPassword && form.newPassword !== form.confirmPassword) { setError("Les mots de passe ne correspondent pas."); return; }
+    if (form.newPassword && !form.currentPassword) { setError("Entrez votre mot de passe actuel pour le changer."); return; }
+    setLoading(true);
+    try {
+      const payload = {};
+      if (form.nom.trim()) payload.nom = form.nom.trim();
+      if (form.telephone.trim()) payload.telephone = form.telephone.trim();
+      if (form.age) payload.age = parseInt(form.age);
+      if (form.newPassword) { payload.currentPassword = form.currentPassword; payload.newPassword = form.newPassword; }
+      const res = await authApi.updateProfile(user.userId, payload);
+      onSaved({ nom: res.nom });
+    } catch (err) { setError(err.message || "Erreur lors de la mise à jour."); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-[28px] border border-stroke bg-panel/95 p-6 shadow-glow overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-extrabold text-white">Modifier le profil</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white">Nom</label>
+            <input name="nom" value={form.nom} onChange={handleChange} placeholder={user.nom} className={PROFILE_INPUT} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-white">Téléphone</label>
+              <input name="telephone" value={form.telephone} onChange={handleChange} placeholder="0600000000" className={PROFILE_INPUT} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-white">Âge</label>
+              <input name="age" type="number" value={form.age} onChange={handleChange} placeholder="25" min="1" max="120" className={PROFILE_INPUT} />
+            </div>
+          </div>
+
+          <div className="border-t border-white/8 pt-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-orange-300">Changer le mot de passe</p>
+            <div className="space-y-3">
+              <input name="currentPassword" type="password" value={form.currentPassword} onChange={handleChange} placeholder="Mot de passe actuel" className={PROFILE_INPUT} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input name="newPassword" type="password" value={form.newPassword} onChange={handleChange} placeholder="Nouveau mot de passe" className={PROFILE_INPUT} />
+                <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="Confirmer" className={PROFILE_INPUT} />
+              </div>
+            </div>
+          </div>
+
+          {error && <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>}
+
+          <div className="flex gap-3 pt-2">
+            <button type="submit" disabled={loading}
+              className="flex-1 rounded-2xl bg-[#FF5722] px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-500 disabled:opacity-60">
+              {loading ? "Enregistrement..." : "Enregistrer"}
+            </button>
+            <button type="button" onClick={onClose}
+              className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:text-white">
+              Annuler
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function SettingsTab({ user, bookings, initials, updateUser, onLogout }) {
+  const [showEdit, setShowEdit] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const roleLabel = { ROLE_CLIENT: "Client", ROLE_ORGANIZER: "Organisateur", ROLE_ADMIN: "Administrateur" }[user.role] ?? user.role;
+
+  function handleSaved(partial) {
+    updateUser(partial);
+    setShowEdit(false);
+    setSuccessMsg("Profil mis à jour avec succès !");
+    setTimeout(() => setSuccessMsg(""), 4000);
+  }
+
+  return (
+    <>
+    <div className="max-w-2xl space-y-6">
+      <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
+        <h2 className="text-2xl font-extrabold text-white">Paramètres du compte</h2>
+      </div>
+
+      {successMsg && (
+        <div className="rounded-2xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-400">{successMsg}</div>
+      )}
+
+      {/* Infos actuelles */}
+      <div className="rounded-2xl border border-white/8 bg-slate-900/50 p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-xl font-extrabold text-white">
+              {initials}
+            </div>
+            <div>
+              <p className="text-xl font-bold text-white">{user.nom}</p>
+              <p className="text-sm text-slate-400">{user.email}</p>
+            </div>
+          </div>
+          <button onClick={() => setShowEdit(true)}
+            className="rounded-2xl bg-[#FF5722] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-orange-500">
+            Modifier
+          </button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            { label: "Rôle", value: roleLabel },
+            { label: "Réservations", value: bookings.length },
+            { label: "Email", value: user.email },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-2xl bg-slate-950/60 p-4">
+              <p className="text-xs text-slate-400">{label}</p>
+              <p className="mt-1 font-semibold text-white truncate">{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button onClick={onLogout}
+        className="w-full rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400 transition hover:bg-red-500/20">
+        Se déconnecter
+      </button>
+    </div>
+
+    {showEdit && <EditProfileModal user={user} onClose={() => setShowEdit(false)} onSaved={handleSaved} />}
+    </>
+  );
+}
+
 export function DashboardPage({ events, savedEvents, onEventCreated }) {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Vue globale");
 
@@ -264,8 +411,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
   // NOUVELLES FONCTIONS : Téléchargement du PDF et Annulation
   const handleDownloadTicket = async (reservationId) => {
     try {
-      // Assure-toi que ton Backend (Booking Service sur le port 8083) possède bien l'endpoint /ticket
-      const response = await fetch(`http://localhost:8083/api/bookings/${reservationId}/ticket`);
+      const response = await bookingsApi.getTicket(reservationId);
       if (!response.ok) throw new Error("Erreur serveur lors du téléchargement");
       
       const blob = await response.blob();
@@ -598,9 +744,19 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                 const placesRestantes = ev.placesDisponibles || 0;
                 const placesTotal = placesRestantes + (stats.totalReserves || 0);
                 const tauxRemplissage = placesTotal ? Math.round((stats.totalVendus / placesTotal) * 100) : 0;
+                const statut = ev.statut ?? "EN_ATTENTE";
+                const isValide = statut === "VALIDE";
+
+                const statutStyle = {
+                  VALIDE: "bg-green-500/15 text-green-300 border-green-500/30",
+                  REFUSE: "bg-red-500/15 text-red-400 border-red-500/30",
+                  EN_ATTENTE: "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
+                }[statut] ?? "bg-slate-700/50 text-slate-300 border-white/10";
+
+                const statutLabel = { VALIDE: "Validé", REFUSE: "Refusé", EN_ATTENTE: "En attente de validation" }[statut] ?? statut;
 
                 return (
-                  <div key={ev.id} className="rounded-[24px] border border-white/8 bg-slate-950/60 p-6 transition hover:border-orange-400/30">
+                  <div key={ev.id} className={`rounded-[24px] border bg-slate-950/60 p-6 transition ${isValide ? "border-white/8 hover:border-orange-400/30" : "border-white/5"}`}>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                       {ev.imageUrl && (
                         <img src={ev.imageUrl} alt={ev.titre}
@@ -608,7 +764,12 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                           onError={(e) => { e.target.style.display = "none"; }} />
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-white truncate">{ev.titre}</h3>
+                        <div className="flex flex-wrap items-start gap-2">
+                          <h3 className="text-lg font-bold text-white truncate">{ev.titre}</h3>
+                          <span className={`shrink-0 rounded-full border px-3 py-0.5 text-xs font-bold ${statutStyle}`}>
+                            {statutLabel}
+                          </span>
+                        </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
                           {ev.lieu && <span>📍 {ev.lieu}</span>}
                           {ev.date && <span>📅 {new Date(ev.date).toLocaleDateString("fr-FR")}</span>}
@@ -621,35 +782,46 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                       </div>
                     </div>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
-                        <p className="text-xs text-slate-400 mb-1">Tickets vendus</p>
-                        <p className="text-2xl font-extrabold text-white">{stats.totalVendus}</p>
+                    {!isValide && (
+                      <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${statutStyle}`}>
+                        {statut === "EN_ATTENTE"
+                          ? "Votre événement est en attente de validation par l'administrateur."
+                          : "Votre événement a été refusé par l'administrateur."}
                       </div>
-                      <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
-                        <p className="text-xs text-slate-400 mb-1">Places restantes</p>
-                        <p className={`text-2xl font-extrabold ${placesRestantes <= 5 ? "text-red-400" : "text-white"}`}>
-                          {placesRestantes < 0 ? 0 : placesRestantes}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
-                        <p className="text-xs text-slate-400 mb-1">Taux de remplissage</p>
-                        <p className="text-2xl font-extrabold text-orange-300">{tauxRemplissage}%</p>
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="mt-4">
-                      <div className="mb-1 flex justify-between text-xs text-slate-500">
-                        <span>0</span>
-                        <span>{placesTotal} places total</span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-[#FF5722] to-orange-400 transition-all"
-                          style={{ width: `${Math.min(tauxRemplissage, 100)}%` }}
-                        />
-                      </div>
-                    </div>
+                    {isValide && (
+                      <>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
+                            <p className="text-xs text-slate-400 mb-1">Tickets vendus</p>
+                            <p className="text-2xl font-extrabold text-white">{stats.totalVendus}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
+                            <p className="text-xs text-slate-400 mb-1">Places restantes</p>
+                            <p className={`text-2xl font-extrabold ${placesRestantes <= 5 ? "text-red-400" : "text-white"}`}>
+                              {placesRestantes < 0 ? 0 : placesRestantes}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
+                            <p className="text-xs text-slate-400 mb-1">Taux de remplissage</p>
+                            <p className="text-2xl font-extrabold text-orange-300">{tauxRemplissage}%</p>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <div className="mb-1 flex justify-between text-xs text-slate-500">
+                            <span>0</span>
+                            <span>{placesTotal} places total</span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#FF5722] to-orange-400 transition-all"
+                              style={{ width: `${Math.min(tauxRemplissage, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
@@ -693,6 +865,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">Date *</label>
                     <input type="date" name="date" value={formData.date} onChange={handleFormChange} required
+                      min={new Date().toISOString().split("T")[0]}
                       className={inputCls} />
                   </div>
                 </div>
@@ -819,36 +992,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
 
           {/* ── Paramètres ── */}
           {activeTab === "⚙️ Paramètres" && (
-            <div className="max-w-2xl space-y-6">
-              <div className="rounded-[28px] border border-white/8 bg-slate-950/60 p-6">
-                <h2 className="text-2xl font-extrabold text-white">Paramètres du compte</h2>
-              </div>
-              <div className="rounded-2xl border border-white/8 bg-slate-900/50 p-6 space-y-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF5722] to-orange-700 text-xl font-extrabold text-white">
-                    {initials}
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-white">{user.nom}</p>
-                    <p className="text-sm text-slate-400">{user.email}</p>
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-slate-950/60 p-4">
-                    <p className="text-xs text-slate-400">Rôle</p>
-                    <p className="mt-1 font-semibold text-white">{user.role === "ROLE_CLIENT" ? "Client" : user.role}</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-950/60 p-4">
-                    <p className="text-xs text-slate-400">Réservations</p>
-                    <p className="mt-1 font-semibold text-white">{bookings.length}</p>
-                  </div>
-                </div>
-              </div>
-              <button onClick={() => { logout(); navigate("/"); }}
-                className="w-full rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400 transition hover:bg-red-500/20">
-                Se déconnecter
-              </button>
-            </div>
+            <SettingsTab user={user} bookings={bookings} initials={initials} updateUser={updateUser} onLogout={() => { logout(); navigate("/"); }} />
           )}
 
         </div>

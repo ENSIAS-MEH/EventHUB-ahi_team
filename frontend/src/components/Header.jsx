@@ -124,7 +124,7 @@ export function Header({
             {isProfileOpen && (
               <div className="absolute right-0 top-[110%] z-50 mt-2 w-56 rounded-2xl border border-white/10 bg-slate-900 p-2 shadow-xl shadow-black/50 backdrop-blur-xl">
                 <button
-                  onClick={() => { navigate("/dashboard"); setIsProfileOpen(false); }}
+                  onClick={() => { navigate(user?.role === "ROLE_ADMIN" ? "/admin" : "/dashboard"); setIsProfileOpen(false); }}
                   className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white"
                 >
                   Tableau de bord

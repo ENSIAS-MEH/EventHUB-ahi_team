@@ -41,11 +41,13 @@ public class JwtFilter extends OncePerRequestFilter {
                         .getPayload();
 
                 String role = claims.get("role", String.class);
-                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        claims.getSubject(), null,
-                        List.of(new SimpleGrantedAuthority(role))
-                );
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                if (role != null && claims.getSubject() != null) {
+                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                            claims.getSubject(), null,
+                            List.of(new SimpleGrantedAuthority(role))
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             } catch (Exception ignored) {
                 // token invalide — on continue sans authentification
             }

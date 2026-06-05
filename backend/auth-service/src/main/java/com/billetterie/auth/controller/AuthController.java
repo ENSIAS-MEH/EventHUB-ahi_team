@@ -3,6 +3,7 @@ package com.billetterie.auth.controller;
 import com.billetterie.auth.dto.AuthResponse;
 import com.billetterie.auth.dto.LoginRequest;
 import com.billetterie.auth.dto.RegisterRequest;
+import com.billetterie.auth.dto.UpdateProfileRequest;
 import com.billetterie.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,5 +43,15 @@ public class AuthController {
         return authService.findById(id)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Utilisateur introuvable"));
+    }
+
+    @PutMapping("/users/{id}/profile")
+    public ResponseEntity<?> updateProfile(@PathVariable Long id, @RequestBody UpdateProfileRequest request) {
+        try {
+            AuthResponse response = authService.updateProfile(id, request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 }

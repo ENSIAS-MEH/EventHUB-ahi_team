@@ -105,6 +105,19 @@ services:
       - booking-service
     restart: on-failure
 
+  # 7. phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    ports:
+      - "8090:80"
+    environment:
+      - PMA_HOST=mysql-server
+      - PMA_USER=root
+      - PMA_PASSWORD=rootpassword
+    depends_on:
+      - mysql-server
+
 volumes:
   event-uploads:
   mysql_data:

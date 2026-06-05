@@ -16,4 +16,5 @@ public class Event {
     private Double prix;
     private Integer placesDisponibles;
     private String imageUrl;
+    private String statut = "EN_ATTENTE";
 }

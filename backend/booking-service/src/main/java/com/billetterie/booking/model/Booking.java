@@ -11,6 +11,7 @@ public class Booking {
     private Long userId;
     private Long eventId;
     private Integer nombrePlaces;
+    private Double prixUnitaire;
     private String statut;
     private LocalDateTime dateReservation;
 }
