@@ -35,7 +35,7 @@ import java.util.List;
 @RequestMapping("/api/bookings")
 @RequiredArgsConstructor
 public class BookingController {
-    
+
     private final BookingRepository repo;
     private final EventClient eventClient;
 
@@ -43,8 +43,7 @@ public class BookingController {
     public Booking create(@RequestBody Booking b) {
         b.setStatut("EN_ATTENTE_PAIEMENT");
         b.setDateReservation(LocalDateTime.now());
-        Booking saved = repo.save(b);
-        return saved;
+        return repo.save(b);
     }
 
     @GetMapping("/user/{userId}")
@@ -58,17 +57,28 @@ public class BookingController {
     }
 
     @GetMapping
-    public List<Booking> getAll() { return repo.findAll(); }
+    public List<Booking> getAll() {
+        return repo.findAll();
+    }
 
     @PutMapping("/{id}/confirmer")
     public Booking confirmer(@PathVariable Long id) {
         Booking b = repo.findById(id).orElseThrow();
-        
+
         if ("EN_ATTENTE_PAIEMENT".equals(b.getStatut())) {
             b.setStatut("CONFIRMEE");
-            eventClient.decrementPlaces(b.getEventId(), b.getNombrePlaces());
+            // Sauvegarde en premier — le paiement est confirmé même si le décompte échoue
+            Booking saved = repo.save(b);
+            try {
+                eventClient.decrementPlaces(saved.getEventId(), saved.getNombrePlaces());
+            } catch (Exception ex) {
+                // Log non-bloquant — la réservation reste confirmée
+                System.err.println("[BookingService] Impossible de décrémenter l'event "
+                        + saved.getEventId() + " : " + ex.getMessage());
+            }
+            return saved;
         }
-        return repo.save(b);
+        return b;
     }
 
     @PutMapping("/{id}/annuler")
@@ -81,23 +91,24 @@ public class BookingController {
     @GetMapping("/{id}/ticket")
     public ResponseEntity<byte[]> genererBilletPdf(@PathVariable Long id) {
         Booking b = repo.findById(id).orElseThrow();
-        
+
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             Document document = new Document();
             PdfWriter.getInstance(document, baos);
             document.open();
-            
-            Color orangeEventHub = new Color(255, 87, 34); // #FF5722
+
+            Color orangeEventHub = new Color(255, 87, 34);
             Color darkGray = new Color(50, 50, 50);
-            
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 28, orangeEventHub);
+
+            Font titleFont    = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 28, orangeEventHub);
             Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, darkGray);
-            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 12, darkGray);
-            Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.BLACK);
-            Font successFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(34, 197, 94)); 
+            Font normalFont   = FontFactory.getFont(FontFactory.HELVETICA, 12, darkGray);
+            Font boldFont     = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.BLACK);
+            Font successFont  = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(34, 197, 94));
 
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy à HH:mm");
-            String dateLisible = b.getDateReservation() != null ? b.getDateReservation().format(formatter) : "N/A";
+            String dateLisible = b.getDateReservation() != null
+                    ? b.getDateReservation().format(formatter) : "N/A";
 
             Paragraph title = new Paragraph("EventHUB", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
@@ -111,45 +122,50 @@ public class BookingController {
 
             PdfPTable table = new PdfPTable(2);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{65f, 35f}); 
+            table.setWidths(new float[]{65f, 35f});
 
             PdfPCell detailsCell = new PdfPCell();
             detailsCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
             detailsCell.setPaddingTop(15);
-            
+
             detailsCell.addElement(new Paragraph("Réservation N° : " + b.getId(), boldFont));
-            detailsCell.addElement(new Paragraph("Événement ID : " + b.getEventId(), normalFont)); 
+            detailsCell.addElement(new Paragraph("Événement ID : " + b.getEventId(), normalFont));
+            if (b.getCategorieNom() != null) {
+                detailsCell.addElement(new Paragraph("Catégorie : " + b.getCategorieNom(), normalFont));
+            }
             detailsCell.addElement(new Paragraph("Nombre de places : " + b.getNombrePlaces(), normalFont));
             detailsCell.addElement(new Paragraph("Date d'achat : " + dateLisible, normalFont));
-            
-            Paragraph status = new Paragraph("\nStatut : " + b.getStatut(), 
-                "CONFIRMEE".equals(b.getStatut()) ? successFont : boldFont);
+
+            Paragraph status = new Paragraph("\nStatut : " + b.getStatut(),
+                    "CONFIRMEE".equals(b.getStatut()) ? successFont : boldFont);
             detailsCell.addElement(status);
-            
+
             table.addCell(detailsCell);
 
-            String qrCodeData = "EventHub-Ticket-" + b.getId() + "-User-" + b.getUserId() + "-Event-" + b.getEventId();
+            String qrCodeData = "EventHub-Ticket-" + b.getId()
+                    + "-User-" + b.getUserId() + "-Event-" + b.getEventId();
             QRCodeWriter qrCodeWriter = new QRCodeWriter();
             BitMatrix bitMatrix = qrCodeWriter.encode(qrCodeData, BarcodeFormat.QR_CODE, 180, 180);
-            
+
             java.awt.image.BufferedImage bufferedImage = MatrixToImageWriter.toBufferedImage(bitMatrix);
             ByteArrayOutputStream pngOutputStream = new ByteArrayOutputStream();
             javax.imageio.ImageIO.write(bufferedImage, "PNG", pngOutputStream);
-            
+
             Image qrImage = Image.getInstance(pngOutputStream.toByteArray());
             qrImage.setAlignment(Element.ALIGN_RIGHT);
-            
+
             PdfPCell qrCell = new PdfPCell();
             qrCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
             qrCell.addElement(qrImage);
             qrCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
             qrCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            
-            table.addCell(qrCell);
 
+            table.addCell(qrCell);
             document.add(table);
 
-            Paragraph footer = new Paragraph("\n\nCe billet est unique et personnel. Veuillez le présenter lors du contrôle à l'entrée de l'événement. Toute falsification entraînera l'annulation immédiate de l'accès.", normalFont);
+            Paragraph footer = new Paragraph(
+                    "\n\nCe billet est unique et personnel. Veuillez le présenter lors du contrôle à l'entrée de l'événement. Toute falsification entraînera l'annulation immédiate de l'accès.",
+                    normalFont);
             footer.setAlignment(Element.ALIGN_JUSTIFIED);
             footer.setSpacingBefore(40);
             document.add(footer);
@@ -157,10 +173,11 @@ public class BookingController {
             document.close();
 
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=EventHub_Billet_" + id + ".pdf")
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=EventHub_Billet_" + id + ".pdf")
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(baos.toByteArray());
-                    
+
         } catch (Exception e) {
             throw new RuntimeException("Erreur lors de la génération du billet PDF", e);
         }

@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      # CORS centralisé — les services individuels n'ont plus besoin de gérer le CORS externe
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost"
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+      # Suppression des doublons CORS si un service downstream envoie aussi ses propres headers
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+
+      routes:
+        # ── Auth Service ────────────────────────────────────────────────────
+        - id: auth-service
+          uri: http://auth-service:8081
+          predicates:
+            - Path=/api/auth/**
+
+        # ── Admin : gestion utilisateurs (auth-service) ─────────────────────
+        - id: auth-admin
+          uri: http://auth-service:8081
+          predicates:
+            - Path=/api/admin/users/**, /api/admin/stats
+
+        # ── Event Service ────────────────────────────────────────────────────
+        - id: event-service
+          uri: http://event-service:8082
+          predicates:
+            - Path=/api/events/**, /api/upload/**
+
+        # ── Admin : gestion événements (event-service) ───────────────────────
+        - id: event-admin
+          uri: http://event-service:8082
+          predicates:
+            - Path=/api/admin/events/**
+
+        # ── Booking Service ──────────────────────────────────────────────────
+        - id: booking-service
+          uri: http://booking-service:8083
+          predicates:
+            - Path=/api/bookings/**
+
+        # ── Admin : gestion réservations (booking-service) ───────────────────
+        - id: booking-admin
+          uri: http://booking-service:8083
+          predicates:
+            - Path=/api/admin/bookings/**
+
+server:
+  port: 8000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always

@@ -18,79 +18,72 @@ services:
       retries: 40
       start_period: 30s
 
-  # 2. L'Annuaire Eureka
-  eureka-server:
-    build: ../backend/eureka-server
-    container_name: eureka-server
-    ports:
-      - "8761:8761"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 40
-      start_period: 40s
-
-  # 3. Le service d'Authentification
+  # 2. Le service d'Authentification
   auth-service:
     build: ../backend/auth-service
     container_name: auth-service
-    ports:
-      - "8081:8081"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_auth?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - JWT_SECRET=eventhub-super-secret-jwt-key-2024-XXXXXXXXXXXXXXXXXXXXXXXXXX
     depends_on:
       mysql-server:
         condition: service_healthy
-      eureka-server:
-        condition: service_healthy
     restart: on-failure
 
-  # 4. Le service des Événements
+  # 3. Le service des Événements
   event-service:
     build: ../backend/event-service
     container_name: event-service
-    ports:
-      - "8082:8082"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_event?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - UPLOAD_DIR=/app/uploads
-      - UPLOAD_BASE_URL=http://localhost:8082
+      - UPLOAD_BASE_URL=http://localhost:8000
       - JWT_SECRET=eventhub-super-secret-jwt-key-2024-XXXXXXXXXXXXXXXXXXXXXXXXXX
     volumes:
       - event-uploads:/app/uploads
     depends_on:
       mysql-server:
         condition: service_healthy
-      eureka-server:
-        condition: service_healthy
     restart: on-failure
 
-  # 5. Le service de Réservation
+  # 4. Le service de Réservation
   booking-service:
     build: ../backend/booking-service
     container_name: booking-service
-    ports:
-      - "8083:8083"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/db_booking?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - EVENT_SERVICE_URL=http://event-service:8082
       - JWT_SECRET=eventhub-super-secret-jwt-key-2024-XXXXXXXXXXXXXXXXXXXXXXXXXX
     depends_on:
       mysql-server:
         condition: service_healthy
-      eureka-server:
-        condition: service_healthy
+    restart: on-failure
+
+  # 5. L'API Gateway — point d'entrée unique pour le frontend
+  api-gateway:
+    build: ../backend/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      auth-service:
+        condition: service_started
+      event-service:
+        condition: service_started
+      booking-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
     restart: on-failure
 
   # 6. Le Frontend React
@@ -100,9 +93,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - auth-service
-      - event-service
-      - booking-service
+      api-gateway:
+        condition: service_healthy
     restart: on-failure
 
   # 7. phpMyAdmin
@@ -118,6 +110,69 @@ services:
     depends_on:
       - mysql-server
 
+  # 8. Prometheus — collecte des métriques
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - auth-service
+      - event-service
+      - booking-service
+      - api-gateway
+    restart: on-failure
+
+  # 9. Grafana — dashboards visuels
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    restart: on-failure
+
+  # 10. Loki — agrégation des logs JSON
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: on-failure
+
+  # 11. Promtail — collecte des logs Docker
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: on-failure
+
+  # 12. Zipkin — traces distribuées
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    restart: on-failure
+
 volumes:
   event-uploads:
   mysql_data:
+  grafana_data:

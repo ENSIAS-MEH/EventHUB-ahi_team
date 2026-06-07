@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat ~/.docker/config.json 2>&1)",
+      "Read(//c/Users/anasm/.docker/**)",
+      "Bash(docker push *)",
+      "Bash(mkdir -p \"c:/Users/anasm/Desktop/ensias/ensias 2A/hamlaoui/app_reservation_plat/eventhub-infrastructure/k8s\")",
+      "Bash(kubectl apply *)",
+      "Bash(kubectl wait *)",
+      "Bash(kubectl get *)",
+      "Bash(wait)",
+      "Bash(minikube service *)",
+      "Bash(minikube ip *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\anasm\\Desktop\\ensias\\ensias 2A\\hamlaoui\\app_reservation_plat\\eventhub-infrastructure"
+    ]
+  }
+}

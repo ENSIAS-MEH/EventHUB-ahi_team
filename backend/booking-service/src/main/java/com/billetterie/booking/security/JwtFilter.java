@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -48,8 +49,16 @@ public class JwtFilter extends OncePerRequestFilter {
                     );
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
-            } catch (Exception ignored) {
-                // token invalide — on continue sans authentification
+            } catch (io.jsonwebtoken.ExpiredJwtException e) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Token expiré, veuillez vous reconnecter\"}");
+                return;
+            } catch (Exception e) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Token invalide\"}");
+                return;
             }
         }
 

@@ -31,6 +31,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/health", "/actuator/prometheus", "/actuator/info").permitAll()
                 // Lecture publique des événements et images
                 .requestMatchers(HttpMethod.GET, "/api/events/**", "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/events/*/decrement").permitAll()

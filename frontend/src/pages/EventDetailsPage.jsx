@@ -23,6 +23,15 @@ function BookingModal({ event, onClose, onSuccess }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  const hasCategories = Array.isArray(event.categories) && event.categories.length > 0;
+  const [selectedCat, setSelectedCat] = useState(hasCategories ? event.categories[0] : null);
+
+  const maxPlaces = selectedCat
+    ? (selectedCat.placesDisponibles || 10)
+    : (event.placesDisponibles || 10);
+  const unitPrice = selectedCat ? selectedCat.prix : null;
+  const total = unitPrice != null ? (unitPrice * places).toFixed(2) + " DH" : null;
+
   if (!user) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
@@ -43,7 +52,13 @@ function BookingModal({ event, onClose, onSuccess }) {
     setError("");
     setLoading(true);
     try {
-      await bookingsApi.create(user.userId, event.id, places);
+      await bookingsApi.create(
+        user.userId,
+        event.id,
+        places,
+        selectedCat ? selectedCat.nom : null,
+        selectedCat ? selectedCat.prix : null,
+      );
       setSuccess(true);
       if (onSuccess) onSuccess(places);
     } catch (err) {
@@ -74,9 +89,77 @@ function BookingModal({ event, onClose, onSuccess }) {
       <div className="w-full max-w-sm rounded-[28px] border border-stroke bg-panel/95 p-8 shadow-glow">
         <h2 className="text-xl font-extrabold text-white">Réserver</h2>
         <form onSubmit={handleBook} className="mt-6 space-y-5">
-          <input type="number" min="1" max={event.placesDisponibles || 10} value={places} onChange={(e) => setPlaces(Number(e.target.value))} className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white" />
-          <button type="submit" disabled={loading} className="w-full rounded-2xl bg-[#FF5722] px-4 py-3 text-sm font-bold text-white">{loading ? "Réservation..." : "Confirmer"}</button>
-          <button type="button" onClick={onClose} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-300">Annuler</button>
+
+          {/* Sélection de catégorie de billet */}
+          {hasCategories && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-white">Catégorie de billet</p>
+              {event.categories.map((cat) => (
+                <label
+                  key={cat.id ?? cat.nom}
+                  className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 transition ${
+                    selectedCat?.nom === cat.nom
+                      ? "border-orange-400/50 bg-orange-500/10"
+                      : "border-white/10 bg-slate-900 hover:border-white/20"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="categorie"
+                      className="accent-orange-500"
+                      checked={selectedCat?.nom === cat.nom}
+                      onChange={() => { setSelectedCat(cat); setPlaces(1); }}
+                    />
+                    <span className="font-semibold text-white">{cat.nom}</span>
+                    {cat.description && (
+                      <span className="text-xs text-slate-400">{cat.description}</span>
+                    )}
+                  </span>
+                  <span className="text-sm font-bold text-orange-300">
+                    {cat.prix != null ? `${cat.prix} DH` : "Gratuit"}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {/* Nombre de places */}
+          <div>
+            <p className="mb-1.5 text-sm font-semibold text-white">Nombre de places</p>
+            <input
+              type="number"
+              min="1"
+              max={maxPlaces}
+              value={places}
+              onChange={(e) => setPlaces(Number(e.target.value))}
+              className="w-full rounded-2xl border border-white/8 bg-slate-900 px-4 py-3 text-white"
+            />
+            {maxPlaces != null && (
+              <p className="mt-1 text-xs text-slate-500">{maxPlaces} place(s) disponible(s)</p>
+            )}
+          </div>
+
+          {/* Total */}
+          {total && (
+            <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-slate-950/60 px-4 py-3">
+              <span className="text-sm text-slate-400">Total</span>
+              <span className="text-lg font-extrabold text-orange-300">{total}</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading} className="w-full rounded-2xl bg-[#FF5722] px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-500 disabled:opacity-60">
+            {loading ? "Réservation..." : "Confirmer la réservation"}
+          </button>
+          <button type="button" onClick={onClose} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-300 transition hover:text-white">
+            Annuler
+          </button>
         </form>
       </div>
     </div>

@@ -1,6 +1,4 @@
-const AUTH_URL = 'http://localhost:8081';
-const EVENT_URL = 'http://localhost:8082';
-const BOOKING_URL = 'http://localhost:8083';
+const GATEWAY_URL = 'http://localhost:8000';
 
 function getToken() {
   try {
@@ -25,30 +23,42 @@ async function handleResponse(res) {
     const text = await res.text();
     try { return JSON.parse(text); } catch { return text; }
   }
+  if (res.status === 401) {
+    localStorage.removeItem('eventhub_user');
+    window.location.href = '/auth';
+    throw new Error('Session expirée, veuillez vous reconnecter.');
+  }
   const text = await res.text();
-  throw new Error(text || `Erreur ${res.status}`);
+  let message = `Erreur ${res.status}`;
+  try {
+    const json = JSON.parse(text);
+    message = json.error || json.message || message;
+  } catch {
+    if (text) message = text;
+  }
+  throw new Error(message);
 }
 
 export const authApi = {
   login: (email, password) =>
-    fetch(`${AUTH_URL}/api/auth/login`, {
+    fetch(`${GATEWAY_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     }).then(handleResponse),
 
   register: (nom, email, password, telephone, age) =>
-    fetch(`${AUTH_URL}/api/auth/register`, {
+    fetch(`${GATEWAY_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nom, email, password, telephone, age }),
     }).then(handleResponse),
 
   verifyUser: (id) =>
-    fetch(`${AUTH_URL}/api/auth/users/${id}`).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/auth/users/${id}`).then(handleResponse),
 
   updateProfile: (id, data) =>
-    fetch(`${AUTH_URL}/api/auth/users/${id}/profile`, {
+    fetch(`${GATEWAY_URL}/api/auth/users/${id}/profile`, {
       method: 'PUT',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
@@ -57,13 +67,13 @@ export const authApi = {
 
 export const eventsApi = {
   getAll: () =>
-    fetch(`${EVENT_URL}/api/events`).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/events`).then(handleResponse),
 
   getByAnnonceur: (userId) =>
-    fetch(`${EVENT_URL}/api/events/annonceur/${userId}`).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/events/annonceur/${userId}`).then(handleResponse),
 
   create: (data) =>
-    fetch(`${EVENT_URL}/api/events`, {
+    fetch(`${GATEWAY_URL}/api/events`, {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
@@ -72,7 +82,7 @@ export const eventsApi = {
   uploadImage: (file) => {
     const form = new FormData();
     form.append('file', file);
-    return fetch(`${EVENT_URL}/api/upload/image`, {
+    return fetch(`${GATEWAY_URL}/api/upload/image`, {
       method: 'POST',
       headers: authHeaders(),
       body: form,
@@ -81,37 +91,37 @@ export const eventsApi = {
 };
 
 export const bookingsApi = {
-  create: (userId, eventId, nombrePlaces) =>
-    fetch(`${BOOKING_URL}/api/bookings`, {
+  create: (userId, eventId, nombrePlaces, categorieNom, prixUnitaire) =>
+    fetch(`${GATEWAY_URL}/api/bookings`, {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ userId, eventId, nombrePlaces }),
+      body: JSON.stringify({ userId, eventId, nombrePlaces, categorieNom, prixUnitaire }),
     }).then(handleResponse),
 
   getByUser: (userId) =>
-    fetch(`${BOOKING_URL}/api/bookings/user/${userId}`, {
+    fetch(`${GATEWAY_URL}/api/bookings/user/${userId}`, {
       headers: authHeaders(),
     }).then(handleResponse),
 
   getByEvent: (eventId) =>
-    fetch(`${BOOKING_URL}/api/bookings/event/${eventId}`, {
+    fetch(`${GATEWAY_URL}/api/bookings/event/${eventId}`, {
       headers: authHeaders(),
     }).then(handleResponse),
 
   confirmer: (id) =>
-    fetch(`${BOOKING_URL}/api/bookings/${id}/confirmer`, {
+    fetch(`${GATEWAY_URL}/api/bookings/${id}/confirmer`, {
       method: 'PUT',
       headers: authHeaders(),
     }).then(handleResponse),
 
   annuler: (id) =>
-    fetch(`${BOOKING_URL}/api/bookings/${id}/annuler`, {
+    fetch(`${GATEWAY_URL}/api/bookings/${id}/annuler`, {
       method: 'PUT',
       headers: authHeaders(),
     }).then(handleResponse),
 
   getTicket: (id) =>
-    fetch(`${BOOKING_URL}/api/bookings/${id}/ticket`, {
+    fetch(`${GATEWAY_URL}/api/bookings/${id}/ticket`, {
       headers: authHeaders(),
     }),
 };
@@ -119,49 +129,49 @@ export const bookingsApi = {
 export const adminApi = {
   // Auth
   getUsers: () =>
-    fetch(`${AUTH_URL}/api/admin/users`, { headers: authHeaders() }).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/admin/users`, { headers: authHeaders() }).then(handleResponse),
   changeRole: (id, role) =>
-    fetch(`${AUTH_URL}/api/admin/users/${id}/role`, {
+    fetch(`${GATEWAY_URL}/api/admin/users/${id}/role`, {
       method: 'PUT',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ role }),
     }).then(handleResponse),
   toggleUser: (id) =>
-    fetch(`${AUTH_URL}/api/admin/users/${id}/toggle`, {
+    fetch(`${GATEWAY_URL}/api/admin/users/${id}/toggle`, {
       method: 'PUT', headers: authHeaders(),
     }).then(handleResponse),
   deleteUser: (id) =>
-    fetch(`${AUTH_URL}/api/admin/users/${id}`, {
+    fetch(`${GATEWAY_URL}/api/admin/users/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }).then(handleResponse),
   getUserStats: () =>
-    fetch(`${AUTH_URL}/api/admin/stats`, { headers: authHeaders() }).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/admin/stats`, { headers: authHeaders() }).then(handleResponse),
 
   // Auth
   getUser: (id) =>
-    fetch(`${AUTH_URL}/api/auth/users/${id}`, { headers: authHeaders() }).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/auth/users/${id}`, { headers: authHeaders() }).then(handleResponse),
 
   // Events
   getAllEvents: () =>
-    fetch(`${EVENT_URL}/api/admin/events`, { headers: authHeaders() }).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/admin/events`, { headers: authHeaders() }).then(handleResponse),
   validerEvent: (id) =>
-    fetch(`${EVENT_URL}/api/admin/events/${id}/valider`, {
+    fetch(`${GATEWAY_URL}/api/admin/events/${id}/valider`, {
       method: 'PUT', headers: authHeaders(),
     }).then(handleResponse),
   refuserEvent: (id) =>
-    fetch(`${EVENT_URL}/api/admin/events/${id}/refuser`, {
+    fetch(`${GATEWAY_URL}/api/admin/events/${id}/refuser`, {
       method: 'PUT', headers: authHeaders(),
     }).then(handleResponse),
   deleteEvent: (id) =>
-    fetch(`${EVENT_URL}/api/admin/events/${id}`, {
+    fetch(`${GATEWAY_URL}/api/admin/events/${id}`, {
       method: 'DELETE', headers: authHeaders(),
     }).then(handleResponse),
   getEventStats: () =>
-    fetch(`${EVENT_URL}/api/admin/events/stats`, { headers: authHeaders() }).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/admin/events/stats`, { headers: authHeaders() }).then(handleResponse),
 
   // Bookings
   getAllBookings: () =>
-    fetch(`${BOOKING_URL}/api/admin/bookings`, { headers: authHeaders() }).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/admin/bookings`, { headers: authHeaders() }).then(handleResponse),
   getBookingStats: () =>
-    fetch(`${BOOKING_URL}/api/admin/bookings/stats`, { headers: authHeaders() }).then(handleResponse),
+    fetch(`${GATEWAY_URL}/api/admin/bookings/stats`, { headers: authHeaders() }).then(handleResponse),
 };

@@ -8,7 +8,7 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: docker
+  - job_name: eventhub-services
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
@@ -16,14 +16,13 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_name']
         target_label: 'container'
       - source_labels: ['__meta_docker_container_name']
-        regex: '/(auth-service|event-service|booking-service)'
+        regex: '/?(auth-service|event-service|booking-service)'
         action: keep
     pipeline_stages:
+      - static_labels:
+          job: eventhub
       - json:
           expressions:
             level: level
-            message: message
-            traceId: traceId
       - labels:
           level:
-          traceId:

@@ -396,9 +396,23 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
               const activeBookings = bookingsList.filter((b) => b.statut !== "ANNULEE");
               const totalVendus = confirmedBookings.reduce((s, b) => s + (b.nombrePlaces || 0), 0);
               const totalReserves = activeBookings.reduce((s, b) => s + (b.nombrePlaces || 0), 0);
-              statsMap[ev.id] = { totalVendus, totalReserves, bookings: bookingsList };
+
+              // Stats par catégorie de billet
+              const categoryStats = {};
+              bookingsList.forEach((b) => {
+                const cat = b.categorieNom || "Standard";
+                if (!categoryStats[cat]) categoryStats[cat] = { vendus: 0, enAttente: 0, chiffre: 0 };
+                if (b.statut === "CONFIRMEE") {
+                  categoryStats[cat].vendus += b.nombrePlaces || 0;
+                  categoryStats[cat].chiffre += (b.prixUnitaire || 0) * (b.nombrePlaces || 0);
+                } else if (b.statut === "EN_ATTENTE_PAIEMENT") {
+                  categoryStats[cat].enAttente += b.nombrePlaces || 0;
+                }
+              });
+
+              statsMap[ev.id] = { totalVendus, totalReserves, bookings: bookingsList, categoryStats };
             } catch {
-              statsMap[ev.id] = { totalVendus: 0, totalReserves: 0, bookings: [] };
+              statsMap[ev.id] = { totalVendus: 0, totalReserves: 0, bookings: [], categoryStats: {} };
             }
           })
         );
@@ -792,6 +806,7 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
 
                     {isValide && (
                       <>
+                        {/* Chiffres globaux */}
                         <div className="mt-5 grid gap-3 sm:grid-cols-3">
                           <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 text-center">
                             <p className="text-xs text-slate-400 mb-1">Tickets vendus</p>
@@ -808,6 +823,8 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                             <p className="text-2xl font-extrabold text-orange-300">{tauxRemplissage}%</p>
                           </div>
                         </div>
+
+                        {/* Barre de progression */}
                         <div className="mt-4">
                           <div className="mb-1 flex justify-between text-xs text-slate-500">
                             <span>0</span>
@@ -820,6 +837,39 @@ export function DashboardPage({ events, savedEvents, onEventCreated }) {
                             />
                           </div>
                         </div>
+
+                        {/* Stats par catégorie de billet */}
+                        {stats.categoryStats && Object.keys(stats.categoryStats).length > 0 && (
+                          <div className="mt-5 rounded-2xl border border-white/8 bg-slate-900/40 p-4">
+                            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-orange-300">
+                              Tickets par catégorie
+                            </p>
+                            <div className="space-y-2">
+                              {Object.entries(stats.categoryStats).map(([cat, s]) => (
+                                <div key={cat} className="flex items-center justify-between gap-4">
+                                  <span className="rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-0.5 text-xs font-semibold text-orange-300">
+                                    {cat}
+                                  </span>
+                                  <div className="flex items-center gap-4 text-xs text-slate-400">
+                                    <span>
+                                      <span className="font-bold text-white">{s.vendus}</span> vendus
+                                    </span>
+                                    {s.enAttente > 0 && (
+                                      <span>
+                                        <span className="font-bold text-yellow-300">{s.enAttente}</span> en attente
+                                      </span>
+                                    )}
+                                    {s.chiffre > 0 && (
+                                      <span>
+                                        <span className="font-bold text-green-300">{s.chiffre.toFixed(0)} DH</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

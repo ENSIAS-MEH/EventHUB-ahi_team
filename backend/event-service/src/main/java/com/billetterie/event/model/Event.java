@@ -3,10 +3,18 @@ package com.billetterie.event.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
-@Data @Entity @Table(name="events")
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+@Entity
+@Table(name = "events")
 public class Event {
-    @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private Long annonceurId;
     private String titre;
     private String description;
@@ -17,4 +25,7 @@ public class Event {
     private Integer placesDisponibles;
     private String imageUrl;
     private String statut = "EN_ATTENTE";
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<TicketCategory> categories = new ArrayList<>();
 }

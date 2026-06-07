@@ -32,6 +32,7 @@ function mapApiEvent(e) {
     price: e.prix != null ? `${e.prix} DH` : "Gratuit",
     image: e.imageUrl && e.imageUrl.trim() !== "" ? e.imageUrl : DEFAULT_IMAGE,
     placesDisponibles: e.placesDisponibles ?? null,
+    categories: Array.isArray(e.categories) ? e.categories : [],
     featured: false,
   };
 }

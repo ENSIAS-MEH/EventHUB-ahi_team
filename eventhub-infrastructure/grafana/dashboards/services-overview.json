@@ -2,12 +2,12 @@
   "id": null,
   "uid": "billetterie-overview",
   "title": "Services Overview",
-  "description": "Vue d'ensemble des microservices Billetterie Dark — métriques, logs, traces",
-  "tags": ["billetterie", "monitoring"],
+  "description": "Vue d'ensemble des microservices EventHub — métriques, logs, traces",
+  "tags": ["eventhub", "monitoring"],
   "timezone": "browser",
   "refresh": "30s",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "time": { "from": "now-1h", "to": "now" },
   "templating": {
     "list": [
@@ -76,7 +76,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(http_server_requests_seconds_count{application=~\"auth-service|event-service|booking-service\"}[5m]))",
+          "expr": "sum(increase(http_server_requests_seconds_count{job=~\"auth-service|event-service|booking-service\"}[5m]))",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -112,7 +112,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=~\"auth-service|event-service|booking-service\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=~\"auth-service|event-service|booking-service\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"auth-service|event-service|booking-service\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=~\"auth-service|event-service|booking-service\"}[5m]))",
           "legendFormat": "Erreurs 5xx",
           "refId": "A"
         }
@@ -146,7 +146,7 @@
       },
       "targets": [
         {
-          "expr": "avg(histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application=~\"auth-service|event-service|booking-service\"}[5m])))",
+          "expr": "avg(histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=~\"auth-service|event-service|booking-service\"}[5m])))",
           "legendFormat": "P95",
           "refId": "A"
         }
@@ -205,8 +205,8 @@
       },
       "targets": [
         {
-          "expr": "process_cpu_usage{application=~\"$service\"}",
-          "legendFormat": "{{application}}",
+          "expr": "process_cpu_usage{job=~\"$service\"}",
+          "legendFormat": "{{job}}",
           "refId": "A"
         }
       ]
@@ -229,8 +229,8 @@
       },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{application=~\"$service\", area=\"heap\"}",
-          "legendFormat": "{{application}}",
+          "expr": "sum by (job) (jvm_memory_used_bytes{job=~\"$service\", area=\"heap\"})",
+          "legendFormat": "{{job}}",
           "refId": "A"
         }
       ]
@@ -253,8 +253,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application=~\"$service\"}[5m]))",
-          "legendFormat": "{{application}}",
+          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(http_server_requests_seconds_bucket{job=~\"$service\"}[5m])))",
+          "legendFormat": "{{job}}",
           "refId": "A"
         }
       ]
@@ -277,8 +277,8 @@
       },
       "targets": [
         {
-          "expr": "rate(http_server_requests_seconds_count{application=~\"$service\"}[1m])",
-          "legendFormat": "{{application}}",
+          "expr": "sum by (job) (rate(http_server_requests_seconds_count{job=~\"$service\"}[1m]))",
+          "legendFormat": "{{job}}",
           "refId": "A"
         }
       ]
@@ -302,18 +302,18 @@
       },
       "targets": [
         {
-          "expr": "sum by (application, status) (rate(http_server_requests_seconds_count{application=~\"$service\",status=~\"2..\"}[5m]))",
-          "legendFormat": "{{application}} 2xx",
+          "expr": "sum by (job) (increase(http_server_requests_seconds_count{job=~\"$service\",status=~\"2..\"}[5m]))",
+          "legendFormat": "{{job}} 2xx",
           "refId": "A"
         },
         {
-          "expr": "sum by (application, status) (rate(http_server_requests_seconds_count{application=~\"$service\",status=~\"4..\"}[5m]))",
-          "legendFormat": "{{application}} 4xx",
+          "expr": "sum by (job) (increase(http_server_requests_seconds_count{job=~\"$service\",status=~\"4..\"}[5m]))",
+          "legendFormat": "{{job}} 4xx",
           "refId": "B"
         },
         {
-          "expr": "sum by (application, status) (rate(http_server_requests_seconds_count{application=~\"$service\",status=~\"5..\"}[5m]))",
-          "legendFormat": "{{application}} 5xx",
+          "expr": "sum by (job) (increase(http_server_requests_seconds_count{job=~\"$service\",status=~\"5..\"}[5m]))",
+          "legendFormat": "{{job}} 5xx",
           "refId": "C"
         }
       ]
@@ -334,7 +334,7 @@
       },
       "targets": [
         {
-          "expr": "{container=~\"auth-service|event-service|booking-service\"} | json | level=~\"ERROR|WARN\"",
+          "expr": "{job=\"eventhub\"} |= `ERROR`",
           "legendFormat": "",
           "refId": "A"
         }
@@ -358,8 +358,56 @@
       },
       "targets": [
         {
-          "expr": "sum by (container) (rate({container=~\"auth-service|event-service|booking-service\"} | json | level=\"ERROR\" [5m]))",
+          "expr": "sum by (container) (count_over_time({job=\"eventhub\"} |= `ERROR` [5m]))",
           "legendFormat": "{{container}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "RAM Non-Heap par service (Metaspace)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 30, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": { "lineWidth": 2 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (job) (jvm_memory_used_bytes{job=~\"$service\", area=\"nonheap\"})",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Threads JVM par service",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 30, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "jvm_threads_live_threads{job=~\"$service\"}",
+          "legendFormat": "{{job}} — live",
           "refId": "A"
         }
       ]
