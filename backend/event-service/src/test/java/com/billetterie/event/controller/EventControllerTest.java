@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -99,11 +100,11 @@ class EventControllerTest {
     }
 
     @Test
-    void getById_ThrowsException_WhenNotFound() throws Exception {
+    void getById_ThrowsException_WhenNotFound() {
         when(repo.findById(99L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/events/99"))
-            .andExpect(status().is5xxServerError());
+        assertThrows(Exception.class, () ->
+            mockMvc.perform(get("/api/events/99")));
     }
 
     // ─── GET /api/events/annonceur/{id} ──────────────────────────────────────
