@@ -1,0 +1,89 @@
+@startuml
+title Diagramme de Cas d'Utilisation — EventHUB
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Visiteur" as V
+actor "Utilisateur" as U
+actor "Annonceur" as A
+actor "Admin" as AD
+
+U --|> V
+A --|> U
+
+rectangle "EventHUB" {
+
+    ' ── Visiteur ──────────────────────────────
+    usecase "S'inscrire" as UC1
+    usecase "Se connecter" as UC2
+    usecase "Voir les événements" as UC3
+    usecase "Filtrer les événements" as UC4
+    usecase "Voir détails d'un événement" as UC5
+
+    ' ── Utilisateur ───────────────────────────
+    usecase "Réserver un événement" as UC6
+    usecase "Choisir une catégorie de ticket" as UC7
+    usecase "Voir mes réservations" as UC8
+    usecase "Télécharger mon ticket (PDF)" as UC9
+    usecase "Annuler une réservation" as UC10
+    usecase "Modifier mon profil" as UC11
+    usecase "Ajouter aux favoris" as UC12
+
+    ' ── Annonceur ─────────────────────────────
+    usecase "Créer un événement" as UC13
+    usecase "Uploader une image" as UC14
+    usecase "Gérer mes événements" as UC15
+    usecase "Définir les catégories de tickets" as UC16
+
+    ' ── Admin ─────────────────────────────────
+    usecase "Valider un événement" as UC17
+    usecase "Refuser un événement" as UC18
+    usecase "Gérer les utilisateurs" as UC19
+    usecase "Changer le rôle d'un utilisateur" as UC20
+    usecase "Activer / Désactiver un compte" as UC21
+    usecase "Supprimer un utilisateur" as UC22
+    usecase "Voir les statistiques" as UC23
+    usecase "Gérer toutes les réservations" as UC24
+}
+
+' Relations Visiteur
+V --> UC1
+V --> UC2
+V --> UC3
+V --> UC4
+V --> UC5
+
+' Relations Utilisateur
+U --> UC6
+U --> UC7
+U --> UC8
+U --> UC9
+U --> UC10
+U --> UC11
+U --> UC12
+
+' Relations Annonceur
+A --> UC13
+A --> UC14
+A --> UC15
+A --> UC16
+
+' Relations Admin
+AD --> UC17
+AD --> UC18
+AD --> UC19
+AD --> UC20
+AD --> UC21
+AD --> UC22
+AD --> UC23
+AD --> UC24
+
+' Include
+UC6 ..> UC7 : <<include>>
+UC13 ..> UC14 : <<include>>
+UC13 ..> UC16 : <<include>>
+UC8 ..> UC9 : <<include>>
+
+@enduml

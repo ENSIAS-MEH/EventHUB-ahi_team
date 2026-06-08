@@ -5,7 +5,11 @@
       "Bash(npm run *)",
       "Bash(Start-Sleep -Seconds 4)",
       "Bash(Get-Content \"C:\\\\Users\\\\anasm\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-anasm-Desktop-ensias-ensias-2A-hamlaoui-app-reservation-development-platform-ahi-team\\\\1acdac55-0a59-455f-9dab-1b2b3e1590b5\\\\tasks\\\\bp5d64gkj.output\")",
-      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\anasm\\\\Desktop\\\\ensias\\\\ensias 2A\\\\hamlaoui\\\\app-reservation\\\\development-platform-ahi_team\\\\frontend\\\\src\" -Recurse -File | ForEach-Object { $_.FullName } | Sort-Object)"
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\anasm\\\\Desktop\\\\ensias\\\\ensias 2A\\\\hamlaoui\\\\app-reservation\\\\development-platform-ahi_team\\\\frontend\\\\src\" -Recurse -File | ForEach-Object { $_.FullName } | Sort-Object)",
+      "Bash(minikube status *)",
+      "Bash(minikube start *)",
+      "Bash(terraform init *)",
+      "PowerShell(terraform version)"
     ]
   }
 }

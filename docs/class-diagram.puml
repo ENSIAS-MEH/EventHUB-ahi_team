@@ -1,0 +1,128 @@
+@startuml
+title Diagramme de Classes — EventHUB
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam class {
+    BackgroundColor #1e1e2e
+    BorderColor #cba6f7
+    FontColor #cdd6f4
+    AttributeFontColor #cdd6f4
+    ArrowColor #89b4fa
+}
+
+' ── Auth Service ────────────────────────────────────────────
+class User {
+    - id : Long
+    - email : String
+    - password : String
+    - nom : String
+    - role : String
+    - telephone : String
+    - age : Integer
+    - enabled : boolean
+    --
+    + getAuthorities() : Collection
+}
+
+enum Role {
+    ROLE_USER
+    ROLE_ANNONCEUR
+    ROLE_ADMIN
+}
+
+' ── Event Service ────────────────────────────────────────────
+class Event {
+    - id : Long
+    - annonceurId : Long
+    - titre : String
+    - description : String
+    - categorie : String
+    - lieu : String
+    - date : String
+    - prix : Double
+    - placesDisponibles : Integer
+    - imageUrl : String
+    - statut : String
+    --
+    + getCategories() : List<TicketCategory>
+}
+
+enum StatutEvent {
+    EN_ATTENTE
+    VALIDE
+    REFUSE
+}
+
+class TicketCategory {
+    - id : Long
+    - nom : String
+    - description : String
+    - prix : Double
+    - placesDisponibles : Integer
+}
+
+' ── Booking Service ──────────────────────────────────────────
+class Booking {
+    - id : Long
+    - userId : Long
+    - eventId : Long
+    - nombrePlaces : Integer
+    - prixUnitaire : Double
+    - categorieNom : String
+    - statut : String
+    - dateReservation : LocalDateTime
+}
+
+enum StatutBooking {
+    EN_ATTENTE
+    CONFIRMEE
+    ANNULEE
+}
+
+' ── Gateway ──────────────────────────────────────────────────
+class ApiGateway {
+    - port : 8000
+    --
+    + routeAuthRequests()
+    + routeEventRequests()
+    + routeBookingRequests()
+}
+
+' ── Relations ────────────────────────────────────────────────
+
+User "1" --> "0..*" Event : crée\n(annonceurId)
+User "1" --> "0..*" Booking : effectue\n(userId)
+Event "1" *-- "1..*" TicketCategory : contient
+Event "1" --> "0..*" Booking : concerne\n(eventId)
+
+User ..> Role : a un
+Event ..> StatutEvent : a un
+Booking ..> StatutBooking : a un
+
+ApiGateway ..> User : route /api/auth
+ApiGateway ..> Event : route /api/events
+ApiGateway ..> Booking : route /api/bookings
+
+note top of ApiGateway
+  Point d'entrée unique
+  port 8000
+  Spring Cloud Gateway
+end note
+
+note right of User
+  Stocké dans db_auth
+  (auth-service)
+end note
+
+note right of Event
+  Stocké dans db_event
+  (event-service)
+end note
+
+note right of Booking
+  Stocké dans db_booking
+  (booking-service)
+end note
+
+@enduml
