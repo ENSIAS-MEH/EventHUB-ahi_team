@@ -17,6 +17,7 @@
 9. [Infrastructure & Déploiement](#-infrastructure--déploiement)
 10. [Monitoring](#-monitoring)
 11. [Défis rencontrés](#-défis-rencontrés)
+12. [Conclusion](#conclusion)
 
 ---
 
@@ -361,3 +362,23 @@ Chaque service Spring Boot expose `/actuator/prometheus` pour Prometheus et `/ac
 | **Gros fichiers Terraform dans Git** | `.terraform/` ajouté au `.gitignore` après suppression du cache avec `git rm --cached` |
 | **Feign Client et panne partielle** | Si Event Service tombe lors d'une confirmation, la réservation reste CONFIRMEE (try/catch non bloquant) |
 | **Conflit Git entre membres** | Résolution manuelle des conflits, puis force push de la branche propre sur main |
+
+---
+## conclusion
+
+Le projet EventHUB illustre la mise en œuvre complète d’une architecture microservices appliquée à une plateforme de billetterie en ligne, en couvrant l’intégralité du cycle DevOps : du développement à la production.
+
+Chaque acteur (client, annonceur, administrateur) bénéficie de fonctionnalités métier claires, soutenues par des choix technologiques cohérents (Spring Boot, React, JWT, OpenPDF, ZXing). L’architecture repose sur quatre microservices indépendants (Auth, Event, Booking, API Gateway), communiquant via OpenFeign et orchestrés par Kubernetes ou Docker Compose.
+
+La sécurité est prise en compte dès la conception : mots de passe hashés (BCrypt), JWT stateless, rôles utilisateurs, isolation des secrets Kubernetes, et CORS centralisé.
+
+Du côté qualité et fiabilité, plus de 34 tests unitaires (JUnit, MockMvc) valident les services backend, tandis que le pipeline CI/CD GitHub Actions exécute automatiquement les tests, puis construit et pousse les images sur Docker Hub.
+
+L’infrastructure est entièrement déclarative : Docker Compose pour le développement local, et Terraform + Kubernetes (Minikube) pour l’environnement pré-production, avec PersistentVolumeClaims, Secrets, readinessProbe et NodePort.
+
+Le monitoring est assuré par un stack complet : Prometheus (métriques), Grafana (dashboards), Loki + Promtail (logs centralisés), et Zipkin (traçage distribué).
+
+Les principaux défis rencontrés (CORS, ordre de démarrage K8s, secrets, quotas GitHub, logs volumineux) ont été résolus méthodiquement, renforçant la robustesse et la maintenabilité de la plateforme.
+
+Ce travail collectif, réalisé par l’équipe AHI, valide l’acquisition des compétences DevOps modernes : conteneurisation, orchestration, infrastructure as code, intégration continue, tests, monitoring, et bonnes pratiques de sécurité. EventHUB est ainsi une base fonctionnelle, industrialisable et prête pour une montée en charge réelle.
+---
