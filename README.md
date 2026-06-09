@@ -380,5 +380,4 @@ Le monitoring est assuré par un stack complet : Prometheus (métriques), Grafan
 
 Les principaux défis rencontrés (CORS, ordre de démarrage K8s, secrets, quotas GitHub, logs volumineux) ont été résolus méthodiquement, renforçant la robustesse et la maintenabilité de la plateforme.
 
-Ce travail collectif, réalisé par l’équipe AHI, valide l’acquisition des compétences DevOps modernes : conteneurisation, orchestration, infrastructure as code, intégration continue, tests, monitoring, et bonnes pratiques de sécurité. EventHUB est ainsi une base fonctionnelle, industrialisable et prête pour une montée en charge réelle.
 ---
