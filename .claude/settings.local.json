@@ -9,7 +9,8 @@
       "Bash(minikube status *)",
       "Bash(minikube start *)",
       "Bash(terraform init *)",
-      "PowerShell(terraform version)"
+      "PowerShell(terraform version)",
+      "Bash(mvn test *)"
     ]
   }
 }

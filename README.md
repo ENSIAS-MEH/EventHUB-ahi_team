@@ -1,454 +1,363 @@
-# EventHub — Plateforme de Réservation d'Événements
+# EventHUB — Plateforme de Réservation d'Événements
+
+> Projet DevOps — ENSIAS 2A · Équipe AHI · 2025–2026
+
 ---
- 
+
 ## Table des matières
- 
-1. [Équipe](#équipe)
-2. [Introduction](#introduction)
-3. [Exigences fonctionnelles et non-fonctionnelles](#exigences)
-4. [Acteurs et rôles](#acteurs)
-5. [Stack Technique](#stack-technique)
-6. [Architecture](#architecture)
-7. [Sécurité](#sécurité)
-8. [APIs](#apis)
-9. [Fonctionnalités](#fonctionnalités)
-10. [Déploiement Docker](#déploiement-docker)
-11. [Infrastructure Cloud (Terraform)](#infrastructure-cloud)
-12. [Déploiement Kubernetes](#kubernetes)
-13. [Configuration Docker](#configuration-docker)
-14. [Structure du frontend](#structure-du-frontend)
-15. [Défis rencontrés](#défis)
-16. [Conclusion](#conclusion)
----
-## Équipe
- 
-Projet réalisé par l'équipe **AHI** — ENSIAS 2A 2025–2026
- 
-| Membre | 
-|--------|
-| Anas el midaoui 
-| Hafsa hounaoui |
-| Ihssan ben labsir |
- 
----
- 
-## Introduction
-**EventHub** est une plateforme moderne de billetterie en ligne construite selon une architecture **microservices**. Elle permet aux utilisateurs de découvrir des événements culturels, de réserver des billets en ligne, et aux annonceurs de publier et gérer leurs événements avec des statistiques en temps réel.
- 
-Le projet couvre l'ensemble du cycle de développement : de la conception à la mise en production via Docker, Kubernetes et une infrastructure cloud définie avec Terraform.
+
+1. [Équipe](#-équipe)
+2. [Introduction](#-introduction)
+3. [Choix technologiques](#-choix-technologiques)
+4. [Architecture](#-architecture)
+5. [Sécurité](#-sécurité)
+6. [APIs](#-apis)
+7. [Tests unitaires](#-tests-unitaires)
+8. [CI/CD Pipeline](#-cicd-pipeline)
+9. [Infrastructure & Déploiement](#-infrastructure--déploiement)
+10. [Monitoring](#-monitoring)
+11. [Défis rencontrés](#-défis-rencontrés)
 
 ---
-## Exigences
- 
-### Fonctionnelles
-- Inscription et connexion des utilisateurs avec JWT
-- Consultation de la liste des événements
-- Réservation de billets avec choix de catégorie (VIP, Standard, etc.)
-- Création et gestion d'événements par les annonceurs
-- Upload d'images pour les événements
-- Dashboard utilisateur : réservations, favoris, annonces publiées
-- Statistiques par annonce : tickets vendus, places restantes, taux de remplissage
-- Téléchargement de tickets au format texte
-### Non-Fonctionnelles
-- **Scalabilité** : architecture microservices, 2 replicas pour le booking-service
-- **Disponibilité** : Service Discovery via Eureka, restart automatique Docker
-- **Sécurité** : JWT, BCrypt, Spring Security, CORS configuré
-- **Performance** : HikariCP pour le connection pooling
-- **Maintenabilité** : code découplé, repositories Spring Data JPA
-### User Stories (quelques un)
-- *En tant que client*, je veux m'inscrire avec mon email pour accéder à la plateforme.
-- *En tant que client*, je veux réserver des billets d'un événement en choisissant ma catégorie de place.
-- *En tant qu'annonceur*, je veux publier un événement avec des catégories de billets et voir les statistiques de vente.
-- *En tant qu'annonceur*, je veux voir le nombre de places restantes et le taux de remplissage de mes annonces.
-- *En tant qu'admin*, je peux approuvé un événement.
+
+## 👥 Équipe
+
+Projet réalisé par l'équipe **AHI** dans le cadre du cours DevOps — ENSIAS 2A 2025–2026
+
+| Membre | GitHub |
+|--------|--------|
+| Anas El Midaoui | [@anasmidaoui](https://github.com/anasmidaoui) |
+| Hafsa Hounaoui | — |
+| Ihssan Ben Labsir | — |
+
 ---
 
-## Acteurs
- 
+## 📌 Introduction
+
+**EventHUB** est une plateforme de billetterie en ligne construite selon une architecture **microservices**. Elle permet aux utilisateurs de découvrir des événements culturels, de réserver des billets, et de télécharger un **billet PDF avec QR code**. Les annonceurs peuvent publier et gérer leurs événements, et les administrateurs valident les publications avant qu'elles soient visibles.
+
+Le projet couvre l'ensemble du cycle DevOps : développement, tests unitaires, intégration continue, conteneurisation Docker, orchestration Kubernetes, et Infrastructure as Code avec Terraform.
+
+### Acteurs et rôles
+
 | Acteur | Rôle |
 |--------|------|
-| **Client** | S'inscrit, se connecte, consulte les événements, réserve des billets |
-| **Annonceur/organisateur** | Crée des événements, upload des images, consulte ses statistiques |
-| **Administrateur** | Gère les utilisateurs via `/api/admin/users` |
----
-## Diagrammes d'architecture
-
-<div style="display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
-  <div style="flex: 1; text-align: center; background: #f5f5f5; padding: 20px; border-radius: 10px;">
-    <h3 style="margin-top: 0;">📊 Diagramme de classes</h3>
-    <img width="273" height="326" alt="Diagramme de classes" src="https://github.com/user-attachments/assets/f46ca7cc-3de2-4154-917f-30e403823557" />
-    <p><em>Structure statique des entités : Event, User, Booking, Category</em></p>
-  </div>
-  
-  <div style="flex: 1; text-align: center; background: #f5f5f5; padding: 20px; border-radius: 10px;">
-    <h3 style="margin-top: 0;">👥 Diagramme de cas d'utilisation</h3>
-    <img width="191" height="329" alt="Diagramme de cas d'utilisation" src="https://github.com/user-attachments/assets/1163f119-a454-4dfe-ba65-340240fe7d22" />
-    <p><em>Interactions entre acteurs (Client, Annonceur, Admin) et fonctionnalités</em></p>
-  </div>
-</div>
+| **Client** | Consulter les événements, réserver des billets, télécharger son billet PDF |
+| **Annonceur** | Créer et gérer ses événements, uploader des images |
+| **Administrateur** | Valider ou refuser les événements, gérer les utilisateurs |
 
 ---
- ---
-## Stack Technique
- 
-| Couche | Technologie |
-|--------|-------------|
-| Frontend | React 18, React Router 7, Vite 5 |
-| Styles | Tailwind CSS 3, Framer Motion |
-| Backend | Java 17, Spring Boot 3.2 / 4.0 |
-| Microservices | Spring Cloud Netflix Eureka, OpenFeign |
-| API Gateway | Spring Cloud Gateway MVC |
-| Sécurité | Spring Security, BCrypt, JWT (JJWT 0.12.6) |
-| Persistance | Spring Data JPA / Hibernate, MySQL 8 |
-| Connection Pool | HikariCP |
-| Upload fichiers | Spring Multipart, volumes Docker |
-| Conteneurisation | Docker, Docker Compose |
-| Orchestration | Kubernetes (Minikube) |
-| Infrastructure Cloud | Terraform (AWS : VPC, EKS, RDS MySQL) |
-| Build | Maven (backend), npm (frontend) |
-| Versioning | Git, GitHub |
+
+## 🛠 Choix technologiques
+
+| Couche | Technologie | Justification |
+|--------|-------------|---------------|
+| Frontend | React 18, Vite 5, Tailwind CSS | SPA moderne, build optimisé, style rapide |
+| Backend | Java 17, Spring Boot 3.2 | Standard entreprise, ecosystème riche |
+| API Gateway | Spring Cloud Gateway | Routage centralisé, CORS unifié |
+| Communication inter-services | OpenFeign | Appels HTTP déclaratifs entre microservices |
+| Sécurité | Spring Security, JWT (JJWT 0.12.6), BCrypt | Authentification stateless, mots de passe hashés |
+| Persistance | Spring Data JPA, Hibernate, MySQL 8 | ORM mature, requêtes sécurisées |
+| Génération PDF | OpenPDF + ZXing | Billets PDF avec QR code unique |
+| Conteneurisation | Docker, Docker Compose | Portabilité, isolation des services |
+| Orchestration | Kubernetes (Minikube) | Auto-healing, scaling, déploiement déclaratif |
+| Infrastructure as Code | Terraform | Infrastructure versionnée, reproductible |
+| CI/CD | GitHub Actions | Automatisation tests + build + push Docker Hub |
+| Monitoring | Prometheus, Grafana, Loki, Promtail, Zipkin | Métriques, logs centralisés, traces distribuées |
+| Tests | JUnit 5, Mockito, Spring MockMvc | Tests unitaires et tests de contrôleurs |
 
 ---
- 
-## Architecture
- 
+
+## 🏗 Architecture
+
+### Structure du projet
+
 ```
 development-platform-ahi_team/
 ├── backend/
-│   ├── eureka-server/       # Annuaire de services (Service Discovery)
-│   ├── api-gateway/         # API Gateway (port 8084)
-│   ├── auth-service/        # Microservice d'authentification (port 8081)
-│   ├── event-service/       # Microservice de gestion des événements (port 8082)
-│   └── booking-service/     # Microservice de réservation (port 8083)
+│   ├── api-gateway/         # Point d'entrée unique — Spring Cloud Gateway (port 8000)
+│   ├── auth-service/        # Authentification & utilisateurs (port 8081)
+│   ├── event-service/       # Gestion des événements + upload images (port 8082)
+│   └── booking-service/     # Réservations + génération PDF/QR (port 8083)
+├── frontend/                # Application React (Nginx en production)
 ├── eventhub-infrastructure/
-│   ├── docker-compose.yml   # Orchestration de tous les services
-│   └── init.sql             # Initialisation des bases de données
-├── frontend/                # Application React (Vite + Tailwind CSS)
-├── k8s/
-│   └── eventhub-k8s.yaml    # Manifestes Kubernetes
-└── Terraform/
-    └── main.tf              # Infrastructure AWS (VPC, EKS, RDS)
-```
- 
-### Flux de communication
- 
-```
-Navigateur (localhost:9090 / localhost:80)
-    │
-    └── API Gateway :8084
-            │
-            ├── Auth Service    :8081  (db_auth)
-            ├── Event Service   :8082  (db_event)   ← Feign Client
-            └── Booking Service :8083  (db_booking) ─────────────┘
-                        │
-                        └── Eureka Server :8761  (Service Discovery)
+│   ├── docker-compose.yml   # Lancement complet en local
+│   ├── k8s/                 # Manifestes Kubernetes (8 fichiers YAML)
+│   └── terraform/           # Infrastructure as Code (11 fichiers .tf)
+├── docs/
+│   ├── use-case.puml        # Diagramme use-case PlantUML
+│   └── class-diagram.puml   # Diagramme de classes PlantUML
+└── .github/workflows/
+    └── ci-cd.yml            # Pipeline GitHub Actions
 ```
 
+### Flux de communication
+
+```
+Navigateur (localhost:5173)
+        │
+        ▼
+  [Frontend React / Nginx]
+        │  appels HTTP /api/*
+        ▼
+  [API Gateway :8000]  ←── point d'entrée unique, gère CORS
+        │
+        ├──► /api/auth/**       ──► [Auth Service    :8081] ──► db_auth
+        ├──► /api/events/**     ──► [Event Service   :8082] ──► db_event
+        ├──► /api/bookings/**   ──► [Booking Service :8083] ──► db_booking
+        └──► /api/admin/**      ──► service concerné
+                                          │
+                               [Booking] appelle [Event]
+                               via Feign pour décrémenter
+                               les places après confirmation
+```
+
+### Diagrammes
+
+<div align="center">
+
+| Diagramme de cas d'utilisation | Diagramme de classes |
+|:---:|:---:|
+| ![Use Case](docs/use-case.png) | ![Class Diagram](docs/class-diagram.png) |
+
+</div>
 
 ### Design Patterns appliqués
 
 - **Repository Pattern** : `JpaRepository` pour chaque entité
-- **DTO Pattern** : `AuthResponse`, `RegisterRequest`
+- **DTO Pattern** : `AuthResponse`, `RegisterRequest`, `UpdateProfileRequest`
 - **Facade Pattern** : API Gateway comme point d'entrée unique
-- **Observer Pattern** : Eureka heartbeat pour la disponibilité des services
-- **SOLID** : chaque service a une responsabilité unique
-
+- **SOLID** : chaque microservice a une responsabilité unique
 
 ---
-## Sécurité
- 
+
+## 🔐 Sécurité
+
 - **Mots de passe** : hashés avec **BCrypt** (jamais stockés en clair)
-- **Authentification** : **JWT** généré par `JwtService` (JJWT 0.12.6)
-- **Filtres** : `JwtFilter` dans event-service et booking-service pour valider le token
-- **Autorisation** : Spring Security avec `SecurityFilterChain`, `@PreAuthorize`
-- **CORS** : configuré dans `CorsConfig.java` du gateway
-- **Requêtes paramétrées** : Spring Data JPA (protection contre les injections SQL)
-- **Rôles** : `ROLE_CLIENT`, `ROLE_ADMIN`
-- **Validation** : Bean Validation (`@Valid`) sur les requêtes entrantes
+- **Authentification** : **JWT** généré à la connexion, contient l'ID utilisateur et son rôle
+- **JwtFilter** : chaque service (auth, event, booking) vérifie le token JWT indépendamment sur chaque requête
+- **Autorisation** : `hasAuthority("ROLE_ADMIN")` sur les routes `/api/admin/**`
+- **CORS** : configuré de façon centralisée dans l'API Gateway
+- **Secrets Kubernetes** : mots de passe et clé JWT stockés dans un `Secret` K8s, jamais en clair dans le code
+- **Requêtes paramétrées** : Spring Data JPA protège contre les injections SQL
+
+### Rôles utilisateurs
+
+| Rôle | Token JWT |
+|------|-----------|
+| `ROLE_CLIENT` | Réserver des billets, voir ses réservations |
+| `ROLE_ANNONCEUR` | Créer et gérer ses événements |
+| `ROLE_ADMIN` | Accès à toutes les routes `/api/admin/**` |
 
 ---
 
-## Services et ports
- 
-| Service | URL | Description |
-|---------|-----|-------------|
-| Frontend (Docker) | http://localhost:80 | Interface utilisateur React |
-| Frontend (Dev) | http://localhost:5173 | Développement avec Vite |
-| API Gateway | http://localhost:8084 | Point d'entrée unique |
-| Eureka Dashboard | http://localhost:8761 | Annuaire des microservices |
-| Auth Service | http://localhost:8081 | Inscription / Connexion |
-| Event Service | http://localhost:8082 | Gestion des événements + uploads |
-| Booking Service | http://localhost:8083 | Réservations |
-| MySQL | localhost:3306 | Base de données |
+## 📡 APIs
 
+### Auth Service — `/api/auth`
 
-## APIs
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/api/auth/register` | Créer un compte |
+| POST | `/api/auth/login` | Connexion → retourne JWT |
+| GET | `/api/auth/users/{id}` | Profil d'un utilisateur |
+| PUT | `/api/auth/users/{id}/profile` | Modifier nom, téléphone, mot de passe |
 
-### Auth Service — `http://localhost:8081`
-
-| Méthode | Endpoint              | Description  |
-|---------|-----------------------|--------------|
-| POST    | `/api/auth/register`  | Inscription  |
-| POST    | `/api/auth/login`     | Connexion    |
-
-**Inscription**
-```json
-POST /api/auth/register
-{
-  "nom": "Alice Dupont",
-  "email": "alice@example.com",
-  "password": "motdepasse"
-}
-```
-
-**Connexion** — retourne `userId`, `nom`, `email`, `role`
 ```json
 POST /api/auth/login
-{
-  "email": "alice@example.com",
-  "password": "motdepasse"
-}
+{ "email": "anas@eventhub.com", "password": "monMotDePasse" }
+
+→ { "token": "eyJ...", "userId": 1, "nom": "Anas", "role": "ROLE_CLIENT" }
 ```
 
----
-### Event Service — `http://localhost:8082`
- 
+### Event Service — `/api/events`
+
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| GET | `/api/events` | Lister tous les événements |
+| GET | `/api/events` | Événements VALIDES et futurs uniquement |
 | GET | `/api/events/{id}` | Détail d'un événement |
-| GET | `/api/events/annonceur/{userId}` | Événements d'un annonceur |
-| POST | `/api/events` | Créer un événement |
-| PUT | `/api/events/{id}` | Modifier un événement |
+| GET | `/api/events/annonceur/{id}` | Événements d'un annonceur |
+| POST | `/api/events` | Créer un événement (statut EN_ATTENTE) |
+| PUT | `/api/events/{id}/decrement?count=N` | Réduire les places disponibles |
 | DELETE | `/api/events/{id}` | Supprimer un événement |
-| PUT | `/api/events/{id}/decrement?nombre=N` | Décrémenter N places |
-| POST | `/api/upload/image` | Upload d'une image (multipart) |
- 
-**Créer un événement**
-```json
-POST /api/events
-{
-  "annonceurId": 1,
-  "titre": "Concert Premium",
-  "categorie": "Concert",
-  "description": "Une soirée inoubliable.",
-  "lieu": "Casablanca, Morocco Mall",
-  "date": "2026-06-15",
-  "prix": 250.0,
-  "placesDisponibles": 300,
-  "imageUrl": "http://localhost:8082/uploads/mon-image.jpg"
-}
-```
- 
----
+| POST | `/api/upload/image` | Upload d'image (multipart) |
 
+### Booking Service — `/api/bookings`
 
-**Upload image**
-```
-POST /api/upload/image
-Content-Type: multipart/form-data
-file: <fichier image>
-
-→ { "url": "http://localhost:8082/uploads/uuid.jpg" }
-```
-
----
-### Booking Service — `http://localhost:8083`
- 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/bookings` | Créer une réservation |
-| GET | `/api/bookings` | Toutes les réservations |
+| POST | `/api/bookings` | Créer une réservation (EN_ATTENTE_PAIEMENT) |
 | GET | `/api/bookings/user/{userId}` | Réservations d'un utilisateur |
 | GET | `/api/bookings/event/{eventId}` | Réservations d'un événement |
-| PUT | `/api/bookings/{id}/confirmer` | Confirmer une réservation |
-| PUT | `/api/bookings/{id}/annuler` | Annuler une réservation |
- 
-**Créer une réservation**
-```json
-POST /api/bookings
-{
-  "userId": 1,
-  "eventId": 3,
-  "nombrePlaces": 2
-}
-```
- 
-**Flux de réservation :**
-1. Le client envoie `POST /api/bookings`
-2. Booking Service sauvegarde avec statut `EN_ATTENTE`
-3. Booking Service appelle Event Service via **Feign Client** : `PUT /api/events/{id}/decrement?nombre=2`
-4. Event Service décrémente les places disponibles
----
+| PUT | `/api/bookings/{id}/confirmer` | Confirmer → CONFIRMEE + décrémente places |
+| PUT | `/api/bookings/{id}/annuler` | Annuler → ANNULEE |
+| GET | `/api/bookings/{id}/ticket` | Télécharger le billet en PDF avec QR code |
 
-## Fonctionnalités
-
-### Frontend connecté au backend
-
-- **Inscription / Connexion** réelles via auth-service
-- **Chargement des événements** depuis event-service (fallback données statiques si vide)
-- **Réservation** connectée au booking-service avec modal de confirmation
-- **Upload d'image** avec aperçu et glisser-déposer lors de la création d'événement
-- **Dashboard utilisateur** :
-  - Réservations réelles avec statut (EN_ATTENTE / CONFIRMEE / ANNULEE)
-  - Téléchargement de ticket avec le vrai nom de l'événement
-  - Création d'événement publiée directement dans la base de données
-  - Favoris persistants en session
-- Filtrage par catégorie, ville et période
-- Recherche instantanée
-- Dark theme avec animations Framer Motion
+**Flux de confirmation :**
+1. `PUT /confirmer` → statut CONFIRMEE sauvegardé en base
+2. Appel Feign vers Event Service : `PUT /api/events/{id}/decrement`
+3. Si Event Service tombe → la réservation reste CONFIRMEE (non bloquant)
 
 ---
-## Déploiement Docker
-### Prérequis
-- Docker et Docker Compose installés
-- Java 17+ et Maven 3.8+
-- Node.js 18+ et npm
 
-## Configuration Docker
+## 🧪 Tests unitaires
 
-### Lancement (recommandé)
- 
+34 tests couvrent les 3 services backend :
+
+| Fichier | Tests | Ce qui est testé |
+|---------|-------|-----------------|
+| `AuthServiceTest` | 11 | register, login, findById, updateProfile |
+| `AuthControllerTest` | 8 | Endpoints HTTP, codes de retour 201/409/200/401/404 |
+| `JwtServiceTest` | 5 | Génération de token, unicité, format JWT |
+| `EventControllerTest` | 13 | Filtrage VALIDE+futur, create, delete, decrement |
+| `BookingControllerTest` | 12 | Cycle complet réservation, Feign, annulation |
+
 ```bash
-# 1. Cloner le projet
+# Lancer les tests d'un service
+cd backend/auth-service && mvn test
+cd backend/event-service && mvn test
+cd backend/booking-service && mvn test
+```
+
+---
+
+## ⚙️ CI/CD Pipeline
+
+Pipeline GitHub Actions déclenché à chaque push sur `main` ou `feature/anas` :
+
+```
+Push sur main
+      │
+      ▼
+┌─────────────────────────────────────┐
+│ STAGE 1 — Tests (en parallèle)      │
+│  ├── Tests auth-service             │
+│  ├── Tests event-service            │
+│  └── Tests booking-service          │
+└─────────────────────────────────────┘
+      │ tous passent ?
+      ▼
+┌─────────────────────────────────────┐
+│ STAGE 2 — Build & Push Docker Hub   │
+│  ├── auth-service:latest            │
+│  ├── event-service:latest           │
+│  ├── booking-service:latest         │
+│  ├── api-gateway:latest             │
+│  └── frontend:latest                │
+└─────────────────────────────────────┘
+```
+
+**Secrets GitHub requis :**
+
+| Secret | Valeur |
+|--------|--------|
+| `DOCKER_USERNAME` | Nom d'utilisateur Docker Hub |
+| `DOCKER_PASSWORD` | Mot de passe Docker Hub |
+
+---
+
+## 🚀 Infrastructure & Déploiement
+
+### Option 1 — Docker Compose (le plus simple)
+
+```bash
+# Cloner le projet
 git clone https://github.com/ENSIAS-MEH/development-platform-ahi_team.git
-cd development-platform-ahi_team
- 
-# 2. Compiler tous les services
-cd backend/auth-service    && mvn clean package -DskipTests && cd ../..
-cd backend/event-service   && mvn clean package -DskipTests && cd ../..
-cd backend/booking-service && mvn clean package -DskipTests && cd ../..
-cd backend/eureka-server   && mvn clean package -DskipTests && cd ../..
-cd backend/api-gateway     && mvn clean package -DskipTests && cd ../..
- 
-# 3. Lancer tous les services
-cd eventhub-infrastructure
-docker compose up -d --build
- 
-# 4. Vérifier
+cd development-platform-ahi_team/eventhub-infrastructure
+
+# Lancer tous les services (build inclus)
+docker compose up --build -d
+
+# Vérifier
 docker compose ps
 ```
- 
-L'application est accessible sur **http://localhost**
- 
-### Après un git pull (mise à jour d'équipe)
- 
-```
-bash
-cd eventhub-infrastructure
-docker compose down -v
-# Recompiler les services modifiés
-docker compose up -d --build
-```
----
-## Infrastructure Cloud (Terraform)
- 
-L'infrastructure AWS est définie dans `Terraform/main.tf` :
- 
-- **VPC** avec 2 sous-réseaux (région Paris `eu-west-3`)
-- **Cluster Kubernetes EKS** : `eventhub-k8s-cluster`
-- **Base de données RDS MySQL 8.0** : instance `db.t3.micro`
-```
-bash
-cd Terraform
-terraform init   # Initialise les providers (hashicorp/aws v6.49.0)
-terraform plan   # Affiche le plan de déploiement
-terraform apply  # Déploie sur AWS (nécessite credentials AWS)
-```
----
-## Kubernetes
- 
-Déploiement local via **Minikube** :
- 
+
+| Service | URL |
+|---------|-----|
+| Application | http://localhost |
+| API Gateway | http://localhost:8000 |
+| phpMyAdmin | http://localhost:8090 |
+| Grafana | http://localhost:3000 (admin/admin) |
+| Prometheus | http://localhost:9090 |
+| Zipkin | http://localhost:9411 |
+
 ```bash
-# Démarrer Minikube
-minikube start --driver=docker
- 
-# Déployer tous les services
-kubectl apply -f k8s/eventhub-k8s.yaml
- 
-# Vérifier les pods
-kubectl get pods
-kubectl get services
- 
-# Accéder au frontend
-kubectl port-forward service/eventhub-frontend 8080:80
-kubectl port-forward service/api-gateway 8084:8084
+# Arrêter
+docker compose down
 ```
- 
-**Services déployés :**
- 
-| Pod | Replicas | Image |
-|-----|----------|-------|
-| mysql | 1 | hafsaaa22/eventhub-mysql:v1.0 |
-| eureka-server | 1 | hafsaaa22/eureka-server:latest |
-| auth-service | 1 | hafsaaa22/auth-service:latest |
-| event-service | 1 | hafsaaa22/event-service:latest |
-| booking-service | **2** | hafsaaa22/booking-service:latest |
-| frontend | 1 | hafsaaa22/eventhub-frontend:latest |
-| api-gateway | 1 | hafsaaa22/api-gateway:latest |
- 
----
-## Configuration Docker
- 
-| Variable | Valeur |
-|----------|--------|
-| `SPRING_DATASOURCE_URL` | `jdbc:mysql://mysql-server:3306/db_xxx?...` |
-| `SPRING_DATASOURCE_USERNAME` | `root` |
-| `SPRING_DATASOURCE_PASSWORD` | `rootpassword` |
-| `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE` | `http://eureka-server:8761/eureka/` |
-| `UPLOAD_DIR` | `/app/uploads` |
-| `UPLOAD_BASE_URL` | `http://localhost:8082` |
-| `JWT_SECRET` | Variable d'environnement sécurisée |
----
-## Structure du frontend
 
+---
+
+### Option 2 — Kubernetes avec Terraform (IaC)
+
+#### Prérequis
+- Minikube installé et démarré
+- Terraform installé
+
+```bash
+# 1. Démarrer Minikube
+minikube start
+
+# 2. Déployer avec Terraform
+cd eventhub-infrastructure/terraform
+terraform init
+terraform apply -auto-approve
+
+# 3. Vérifier les pods
+kubectl get pods -n eventhub
+
+# 4. Accéder à l'application (2 terminaux)
+kubectl port-forward service/frontend 5173:80 -n eventhub
+kubectl port-forward service/api-gateway 8000:8000 -n eventhub
 ```
-frontend/src/
-├── api/
-│   └── api.js                # Appels vers les microservices via API Gateway
-├── context/
-│   └── AuthContext.jsx       # État auth global (localStorage + JWT)
-├── components/
-│   ├── Header.jsx
-│   ├── EventCard.jsx
-│   ├── EventGrid.jsx
-│   ├── FeaturedEvents.jsx
-│   ├── FilterModal.jsx
-│   ├── SecondaryNav.jsx
-│   ├── Footer.jsx
-│   └── Logo.jsx
-├── pages/
-│   ├── AuthPage.jsx           # Login / Inscription
-│   ├── HomePage.jsx           # Page d'accueil
-│   ├── EventDetailsPage.jsx   # Détail + réservation avec choix de catégorie
-│   └── DashboardPage.jsx      # Espace utilisateur complet
-└── data/
-    └── events.js              # Données statiques de fallback
+
+Ouvrir **http://localhost:5173**
+
+```bash
+# Supprimer l'infrastructure
+terraform destroy -auto-approve
 ```
+
+#### Ressources Kubernetes créées par Terraform
+
+| Ressource | Type | Rôle |
+|-----------|------|------|
+| `eventhub` | Namespace | Isolation de tous les composants |
+| `eventhub-secrets` | Secret | Mot de passe MySQL + clé JWT |
+| `mysql-init` | ConfigMap | Script SQL de création des bases |
+| `mysql-pvc` | PersistentVolumeClaim | Stockage persistant 5Go pour MySQL |
+| `mysql` | Deployment + Service (ClusterIP) | Base de données |
+| `auth-service` | Deployment + Service (ClusterIP) | Authentification |
+| `event-service` | Deployment + Service (ClusterIP) | Événements |
+| `booking-service` | Deployment + Service (ClusterIP) | Réservations |
+| `api-gateway` | Deployment + Service (NodePort 30000) | Point d'entrée |
+| `frontend` | Deployment + Service (NodePort 30080) | Interface React |
+
 ---
-## Défis rencontrés
 
-- **Conflits Git entre membres** : résolution via merge manuel des fichiers en conflit
-- **Double décrémentation des places** : bug corrigé dans le Feign Client — passage du paramètre `nombrePlaces` au lieu d'une décrémentation fixe de 1
-- **Doublon de champ** dans `Event.java` après merge : champ `annonceurId` dupliqué supprimé
-- **Synchronisation des services** dans Kubernetes : certains services démarraient avant MySQL, résolu avec `kubectl rollout restart`
-- **CORS entre frontend et API Gateway** : `CorsConfig.java` mis à jour pour inclure les origines frontend
-- **Compatibilité Terraform** : installation manuelle du binaire sur Ubuntu 25.04 (repo HashiCorp incompatible avec cette version)
+## 📊 Monitoring
+
+| Outil | URL | Rôle |
+|-------|-----|------|
+| **Prometheus** | :9090 | Collecte les métriques des services (CPU, mémoire, requêtes HTTP) |
+| **Grafana** | :3000 | Dashboards visuels à partir des métriques Prometheus |
+| **Loki** | :3100 | Agrégation des logs JSON de tous les services |
+| **Promtail** | — | Collecte les logs Docker et les envoie à Loki |
+| **Zipkin** | :9411 | Traçage distribué des requêtes entre microservices |
+
+Chaque service Spring Boot expose `/actuator/prometheus` pour Prometheus et `/actuator/health` pour les probes Kubernetes.
 
 ---
-## Conclusion
- 
-Le projet EventHub démontre une architecture microservices complète allant du développement à la mise en production. Chaque membre de l'équipe a pris en charge des services spécifiques avec une intégration continue via GitHub.
- 
-Les points clés réalisés :
-- Architecture microservices avec Service Discovery (Eureka)
-- Sécurité JWT + BCrypt + Spring Security
-- Déploiement Docker Compose (production) et Kubernetes (orchestration)
-- Infrastructure Cloud décrite avec Terraform (AWS)
-- Frontend React complet avec dashboard statistiques en temps réel
 
-## Équipe
+## ⚠️ Défis rencontrés
 
-Projet réalisé par l'équipe **AHI: anas el midaoui,hafsa hounaoui,ihssan ben labsir** 
-— ENSIAS 2A
+| Défi | Solution |
+|------|----------|
+| **CORS entre frontend et backend** | Centralisation du CORS dans l'API Gateway avec `DedupeResponseHeader` pour éviter les doublons |
+| **Ordre de démarrage dans K8s** | `readinessProbe` sur `/actuator/health` — K8s n'envoie du trafic qu'aux pods prêts |
+| **Données persistantes MySQL dans K8s** | `PersistentVolumeClaim` de 5Go — les données survivent aux redémarrages des pods |
+| **Secrets sensibles dans Git** | Utilisation des `Secret` Kubernetes et des `Secrets` GitHub Actions — jamais de mot de passe dans le code |
+| **Quota d'artifacts GitHub épuisé** | Suppression des étapes `upload-artifact` du pipeline CI/CD |
+| **Tests Spring MVC 6** | `orElseThrow()` propage une `ServletException` au lieu d'un status 500 — corrigé avec `assertThrows` |
+| **Gros fichiers Terraform dans Git** | `.terraform/` ajouté au `.gitignore` après suppression du cache avec `git rm --cached` |
+| **Feign Client et panne partielle** | Si Event Service tombe lors d'une confirmation, la réservation reste CONFIRMEE (try/catch non bloquant) |
+| **Conflit Git entre membres** | Résolution manuelle des conflits, puis force push de la branche propre sur main |
