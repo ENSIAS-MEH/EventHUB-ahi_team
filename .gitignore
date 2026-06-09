@@ -10,3 +10,11 @@ node_modules/
 # IDE
 .idea/
 *.iml
+.vscode/
+.claude/settings.local.json
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
