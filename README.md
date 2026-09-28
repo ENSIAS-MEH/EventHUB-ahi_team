@@ -28,8 +28,8 @@ Projet réalisé par l'équipe **AHI** dans le cadre du cours DevOps — ENSIAS 
 | Membre | GitHub |
 |--------|--------|
 | Anas El Midaoui | [@anasmidaoui](https://github.com/anasmidaoui) |
-| Hafsa Hounaoui | — |
-| Ihssan Ben Labsir | — |
+| Hafsa Hounaoui | [@hafsaa22](https://github.com/hafsaa22) |
+| Ihssan Ben Labsir | [@ihssan16](https://github.com/ihssan16) |
 
 ---
 
