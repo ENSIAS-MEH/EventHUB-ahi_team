@@ -33,7 +33,7 @@ Projet réalisé par l'équipe **AHI** dans le cadre du cours DevOps — ENSIAS 
 
 ---
 
-## 📌 Introduction
+## Introduction
 
 **EventHUB** est une plateforme de billetterie en ligne construite selon une architecture **microservices**. Elle permet aux utilisateurs de découvrir des événements culturels, de réserver des billets, et de télécharger un **billet PDF avec QR code**. Les annonceurs peuvent publier et gérer leurs événements, et les administrateurs valident les publications avant qu'elles soient visibles.
 
@@ -49,7 +49,7 @@ Le projet couvre l'ensemble du cycle DevOps : développement, tests unitaires, i
 
 ---
 
-## 🛠 Choix technologiques
+## Choix technologiques
 
 | Couche | Technologie | Justification |
 |--------|-------------|---------------|
@@ -69,7 +69,7 @@ Le projet couvre l'ensemble du cycle DevOps : développement, tests unitaires, i
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ### Structure du projet
 
@@ -132,7 +132,7 @@ Navigateur (localhost:5173)
 
 ---
 
-## 🔐 Sécurité
+## Sécurité
 
 - **Mots de passe** : hashés avec **BCrypt** (jamais stockés en clair)
 - **Authentification** : **JWT** généré à la connexion, contient l'ID utilisateur et son rôle
@@ -152,7 +152,7 @@ Navigateur (localhost:5173)
 
 ---
 
-## 📡 APIs
+## APIs
 
 ### Auth Service — `/api/auth`
 
@@ -200,7 +200,7 @@ POST /api/auth/login
 
 ---
 
-## 🧪 Tests unitaires
+## Tests unitaires
 
 34 tests couvrent les 3 services backend :
 
@@ -221,7 +221,7 @@ cd backend/booking-service && mvn test
 
 ---
 
-## ⚙️ CI/CD Pipeline
+## CI/CD Pipeline
 
 Pipeline GitHub Actions déclenché à chaque push sur `main` ou `feature/anas` :
 
@@ -256,7 +256,7 @@ Push sur main
 
 ---
 
-## 🚀 Infrastructure & Déploiement
+## Infrastructure & Déploiement
 
 ### Option 1 — Docker Compose (le plus simple)
 
@@ -335,7 +335,7 @@ terraform destroy -auto-approve
 
 ---
 
-## 📊 Monitoring
+## Monitoring
 
 | Outil | URL | Rôle |
 |-------|-----|------|
@@ -349,7 +349,7 @@ Chaque service Spring Boot expose `/actuator/prometheus` pour Prometheus et `/ac
 
 ---
 
-## ⚠️ Défis rencontrés
+## Défis rencontrés
 
 | Défi | Solution |
 |------|----------|
